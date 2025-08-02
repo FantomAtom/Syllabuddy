@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';  // your primary color lives here
+import 'signup.dart'; 
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -172,7 +173,14 @@ class _LoginPageState extends State<LoginPage> {
                       children: [
                         const Text("Don't have an account? "),
                         GestureDetector(
-                          onTap: () {}, // TODO
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const SignUpPage(),
+                              ),
+                            );
+                          },
                           child: Text(
                             'Register Now',
                             style: TextStyle(
