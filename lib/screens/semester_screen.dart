@@ -1,45 +1,97 @@
-// lib/screens/semester_screen.dart
 import 'package:flutter/material.dart';
-import 'package:syllabuddy/screens/subject_screen.dart';
+import '../widgets/option_card.dart';
+import 'subject_screen.dart';
 
 class SemesterScreen extends StatelessWidget {
   final String courseLevel;
   final String department;
   final String year;
-  const SemesterScreen({Key? key, required this.courseLevel, required this.department, required this.year}) : super(key: key);
+
+  const SemesterScreen({
+    Key? key,
+    required this.courseLevel,
+    required this.department,
+    required this.year,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
-    final sems = ['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4'];
+    final sems = [
+      'First Semester',
+      'Second Semester',
+      'Third Semester',
+      'Fourth Semester',
+      'Fifth Semester',
+      'Sixth Semester'
+    ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('$year Semesters'),
-        backgroundColor: primary,
-      ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: sems.length,
-        itemBuilder: (_, i) {
-          final sem = sems[i];
-          return Card(
-            child: ListTile(
-              title: Text(sem),
-              trailing: Icon(Icons.arrow_forward_ios, color: primary),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SubjectScreen(
-                    department: department,
-                    year: year,
-                    semester: sem,
+      body: Column(
+        children: [
+          // Top curved banner with back button
+          ClipRRect(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(40),
+              bottomRight: Radius.circular(40),
+            ),
+            child: Container(
+              width: double.infinity,
+              color: primary,
+              padding: const EdgeInsets.only(top: 80, bottom: 40),
+              child: Stack(
+                children: [
+                  Align(
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Select Semester',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
                   ),
-                ),
+                  Positioned(
+                    left: 16,
+                    top: 0,
+                    bottom: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                ],
               ),
             ),
-          );
-        },
+          ),
+
+          // Semester options
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: ListView(
+                children: sems.map((sem) {
+                  return OptionCard(
+                    title: sem,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SubjectScreen(
+                            department: department,
+                            year: year,
+                            semester: sem,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
