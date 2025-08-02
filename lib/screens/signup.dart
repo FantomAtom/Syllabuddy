@@ -90,6 +90,8 @@ class _SignUpPageState extends State<SignUpPage> {
                             controller: _firstNameCtrl,
                             decoration: InputDecoration(
                               hintText: 'First Name',
+                              hintStyle:
+                                TextStyle(color: Colors.black.withOpacity(0.5)),
                               filled: true,
                               fillColor: Colors.grey[100],
                               contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -107,6 +109,8 @@ class _SignUpPageState extends State<SignUpPage> {
                             controller: _lastNameCtrl,
                             decoration: InputDecoration(
                               hintText: 'Last Name',
+                              hintStyle:
+                                TextStyle(color: Colors.black.withOpacity(0.5)),
                               filled: true,
                               fillColor: Colors.grey[100],
                               contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -127,6 +131,8 @@ class _SignUpPageState extends State<SignUpPage> {
                       controller: _emailCtrl,
                       decoration: InputDecoration(
                         hintText: 'Email',
+                        hintStyle:
+                            TextStyle(color: Colors.black.withOpacity(0.5)),
                         filled: true,
                         fillColor: Colors.grey[100],
                         prefixIcon: Icon(Icons.email, color: primary),
@@ -146,6 +152,8 @@ class _SignUpPageState extends State<SignUpPage> {
                       controller: _passwordCtrl,
                       decoration: InputDecoration(
                         hintText: 'Password',
+                        hintStyle:
+                            TextStyle(color: Colors.black.withOpacity(0.5)),
                         filled: true,
                         fillColor: Colors.grey[100],
                         prefixIcon: Icon(Icons.lock, color: primary),
@@ -169,6 +177,8 @@ class _SignUpPageState extends State<SignUpPage> {
                       controller: _studentIdCtrl,
                       decoration: InputDecoration(
                         hintText: 'Student ID (optional)',
+                        hintStyle:
+                            TextStyle(color: Colors.black.withOpacity(0.5)),
                         filled: true,
                         fillColor: Colors.grey[100],
                         prefixIcon: Icon(Icons.perm_identity, color: primary),
@@ -211,7 +221,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         const Text("Already have an account? "),
                         GestureDetector(
                           onTap: () {
-                            Navigator.push(
+                            Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => const LoginPage(),

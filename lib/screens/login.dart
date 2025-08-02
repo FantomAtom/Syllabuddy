@@ -174,7 +174,7 @@ class _LoginPageState extends State<LoginPage> {
                         const Text("Don't have an account? "),
                         GestureDetector(
                           onTap: () {
-                            Navigator.push(
+                            Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => const SignUpPage(),
