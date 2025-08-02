@@ -1,5 +1,6 @@
 // lib/screens/courses_screen.dart
 import 'package:flutter/material.dart';
+import 'package:syllabuddy/screens/landingScreen.dart';
 import 'department_screen.dart';
 
 class CoursesScreen extends StatelessWidget {
@@ -103,7 +104,12 @@ class CoursesScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     onPressed: () {
-                      // TODO: logout logic
+                      Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const LandingScreen(),
+                              ),
+                            );
                     },
                   ),
                 ),
