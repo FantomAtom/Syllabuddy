@@ -36,8 +36,10 @@ class _LoginPageState extends State<LoginPage> {
                     'assets/logo.png',
                     height: 100,
                   ),
+
                   const SizedBox(height: 16),
-                  // "Login" label
+
+                  // First text
                   Text(
                     'Welcome back!',
                     style: TextStyle(
@@ -46,13 +48,17 @@ class _LoginPageState extends State<LoginPage> {
                       color: Colors.white.withOpacity(0.9),
                     ),
                   ),
+
+                  // <-- add vertical spacing -->
+                  const SizedBox(height: 20),
+
+                  // Second text
                   Text(
                     'Login',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.white.withOpacity(0.9),
-                      //add padding between the two texts here
                     ),
                   ),
                 ],
