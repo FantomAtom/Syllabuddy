@@ -1,6 +1,5 @@
 // lib/screens/courses_screen.dart
 import 'package:flutter/material.dart';
-import '../theme.dart';
 import 'department_screen.dart';
 
 class CoursesScreen extends StatelessWidget {
@@ -36,7 +35,7 @@ class CoursesScreen extends StatelessWidget {
               padding: const EdgeInsets.only(top: 80, bottom: 40),
               child: Center(
                 child: Text(
-                  'Select Course',
+                  'Select Degree Level',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,

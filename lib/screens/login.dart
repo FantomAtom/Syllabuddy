@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:syllabuddy/screens/coursesScreen.dart';
+import 'package:syllabuddy/screens/degree_screen.dart';
 import 'signup.dart'; 
 
 class LoginPage extends StatefulWidget {
