@@ -1,6 +1,5 @@
 // lib/screens/signup.dart
 import 'package:flutter/material.dart';
-import '../theme.dart';
 import 'login.dart';
 
 class SignUpPage extends StatefulWidget {

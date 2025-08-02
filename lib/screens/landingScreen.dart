@@ -1,7 +1,6 @@
 // lib/screens/landing_screen.dart
 import 'package:flutter/material.dart';
 import 'package:syllabuddy/screens/login.dart';
-import '../theme.dart';
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({Key? key}) : super(key: key);

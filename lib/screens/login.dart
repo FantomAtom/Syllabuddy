@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme.dart';  // your primary color lives here
+import 'package:syllabuddy/screens/coursesScreen.dart';
 import 'signup.dart'; 
 
 class LoginPage extends StatefulWidget {
@@ -150,7 +150,12 @@ class _LoginPageState extends State<LoginPage> {
                       child: ElevatedButton(
                         onPressed: () {
                           if (_formKey.currentState?.validate() == true) {
-                            // TODO: login logic
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const CoursesScreen(),
+                              ),
+                            );
                           }
                         },
                         style: ElevatedButton.styleFrom(
