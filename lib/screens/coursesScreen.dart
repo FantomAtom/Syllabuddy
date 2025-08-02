@@ -1,6 +1,7 @@
 // lib/screens/courses_screen.dart
 import 'package:flutter/material.dart';
-import 'department_screen.dart';  // you’ll create this next
+import '../theme.dart';
+import 'department_screen.dart';
 
 class CoursesScreen extends StatelessWidget {
   const CoursesScreen({Key? key}) : super(key: key);
@@ -17,6 +18,8 @@ class CoursesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
+    // Sample user name for now
+    const userName = 'John';
 
     return Scaffold(
       body: Column(
@@ -44,10 +47,26 @@ class CoursesScreen extends StatelessWidget {
             ),
           ),
 
+          // Welcome message
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Welcome, $userName',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: primary,
+                ),
+              ),
+            ),
+          ),
+
           // Course options
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
               child: Column(
                 children: [
                   _CourseCard(
@@ -63,6 +82,52 @@ class CoursesScreen extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+
+          // Logout & Delete Account buttons
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Logout'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primary,          // primary color
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    onPressed: () {
+                      // TODO: logout logic
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.delete_forever),
+                    label: const Text('Delete Account'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade600,  // red for danger
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    onPressed: () {
+                      // TODO: delete account logic
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ],

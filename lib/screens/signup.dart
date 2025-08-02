@@ -228,7 +228,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             );
                           },
                           child: Text(
-                            'Login!',
+                            'Login',
                             style: TextStyle(
                               color: primary,
                               fontWeight: FontWeight.bold,

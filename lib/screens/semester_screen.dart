@@ -1,8 +1,6 @@
 // lib/screens/semester_screen.dart
 import 'package:flutter/material.dart';
 import 'package:syllabuddy/screens/subject_screen.dart';
-import '../theme.dart';
-import 'subject_screen.dart';
 
 class SemesterScreen extends StatelessWidget {
   final String courseLevel;
