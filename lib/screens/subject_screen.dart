@@ -34,6 +34,16 @@ class SubjectScreen extends StatelessWidget {
     return null;
   }
 
+  String _formatSemesterTitle(String sem) {
+  switch (sem) {
+    case '1': return '1st Semester';
+    case '2': return '2nd Semester';
+    case '3': return '3rd Semester';
+    default: return '${sem}th Semester';
+  }
+}
+
+
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
@@ -75,7 +85,7 @@ class SubjectScreen extends StatelessWidget {
                   ),
                   Center(
                     child: Text(
-                      '$semester Subjects',
+                      '${_formatSemesterTitle(semester)} Subjects',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
