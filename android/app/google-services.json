@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "506712134074",
+    "project_id": "syllabuddy-5f15a",
+    "storage_bucket": "syllabuddy-5f15a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:506712134074:android:0795e10b9933d7e5420d83",
+        "android_client_info": {
+          "package_name": "com.example.syllabuddy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNpp1idlXuFExfK_Rv-58j9dUNo_-t-h4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
