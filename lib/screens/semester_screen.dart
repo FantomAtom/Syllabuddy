@@ -204,6 +204,7 @@ class SemesterScreen extends StatelessWidget {
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => SubjectScreen(
+                                    courseLevel: courseLevel,
                                     department: department,
                                     year: year,
                                     semester: doc.id, // pass semester doc id (e.g. "1")
