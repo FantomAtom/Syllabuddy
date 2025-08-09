@@ -199,7 +199,12 @@ class SubjectScreen extends StatelessWidget {
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => SubjectSyllabusScreen(
-                                      subjectName: title,
+                                      courseLevel: courseLevel,
+                                      department: department,
+                                      year: year,
+                                      semester: semester,
+                                      subjectId: doc.id,        // important: pass the subject document id (e.g. "CS102")
+                                      subjectName: title,       // optional friendly name
                                     ),
                                   ),
                                 );
