@@ -1,5 +1,6 @@
-// lib/screens/courses_screen.dart
+// lib/screens/degrees_screen.dart
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:syllabuddy/screens/landingScreen.dart';
 import 'department_screen.dart';
 
@@ -63,24 +64,69 @@ class CoursesScreen extends StatelessWidget {
             ),
           ),
 
-          // Course options
+          // Course options (only using displayName from Firestore; icons chosen client-side)
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Column(
-                children: [
-                  _CourseCard(
-                    title: 'Undergraduate (UG)',
-                    icon: Icons.school,
-                    onTap: () => _navigateToDept(context, 'UG'),
-                  ),
-                  const SizedBox(height: 24),
-                  _CourseCard(
-                    title: 'Postgraduate (PG)',
-                    icon: Icons.workspace_premium,
-                    onTap: () => _navigateToDept(context, 'PG'),
-                  ),
-                ],
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: FirebaseFirestore.instance
+                    .collection('degree-level')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final docs = snapshot.data?.docs ?? [];
+                  if (docs.isEmpty) {
+                    return const Center(child: Text('No degree levels found.'));
+                  }
+
+                  // Put UG first then PG if present (nice UX); then any other docs after.
+                  final mapById = {for (var d in docs) d.id.toUpperCase(): d};
+                  final ordered = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+                  if (mapById.containsKey('UG')) ordered.add(mapById['UG']!);
+                  if (mapById.containsKey('PG')) ordered.add(mapById['PG']!);
+
+                  // Add remaining docs that are neither UG nor PG
+                  for (var d in docs) {
+                    final idUp = d.id.toUpperCase();
+                    if (idUp != 'UG' && idUp != 'PG') ordered.add(d);
+                  }
+
+                  return ListView.separated(
+                    itemCount: ordered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 24),
+                    itemBuilder: (context, index) {
+                      final doc = ordered[index];
+                      final data = doc.data();
+                      final displayName =
+                          (data['displayName'] as String?) ?? doc.id;
+
+                      // Choose icon client-side:
+                      // PG -> workspace_premium, else -> school (UG or fallback)
+                      final idUp = doc.id.toUpperCase();
+                      final lowerDisplay = displayName.toLowerCase();
+                      final isPg = idUp == 'PG' ||
+                          idUp.contains('PG') ||
+                          lowerDisplay.contains('post') ||
+                          lowerDisplay.contains('postgraduate') ||
+                          lowerDisplay.contains('post graduate');
+
+                      final icon = isPg ? Icons.workspace_premium : Icons.school;
+
+                      return _CourseCard(
+                        title: displayName,
+                        icon: icon,
+                        onTap: () => _navigateToDept(context, doc.id),
+                      );
+                    },
+                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                  );
+                },
               ),
             ),
           ),
@@ -96,7 +142,7 @@ class CoursesScreen extends StatelessWidget {
                     icon: const Icon(Icons.logout),
                     label: const Text('Logout'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: primary,          // primary color
+                      backgroundColor: primary, // primary color
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -105,11 +151,11 @@ class CoursesScreen extends StatelessWidget {
                     ),
                     onPressed: () {
                       Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const LandingScreen(),
-                              ),
-                            );
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LandingScreen(),
+                        ),
+                      );
                     },
                   ),
                 ),
@@ -120,7 +166,7 @@ class CoursesScreen extends StatelessWidget {
                     icon: const Icon(Icons.delete_forever),
                     label: const Text('Delete Account'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.shade600,  // red for danger
+                      backgroundColor: Colors.red.shade600, // red for danger
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
