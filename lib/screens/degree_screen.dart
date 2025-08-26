@@ -304,11 +304,12 @@ class _CoursesScreenState extends State<CoursesScreen> {
     children.add(const SizedBox(height: 24));
 
     return Scaffold(
-      body: ListView(
+      body: Column(
         children: [
-          // Top curved banner
+          // Fixed Top curved banner (stays on top while rest scrolls)
           ClipRRect(
-            borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
+            borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
             child: Container(
               width: double.infinity,
               color: primary,
@@ -316,112 +317,131 @@ class _CoursesScreenState extends State<CoursesScreen> {
               child: Center(
                 child: Text(
                   'Select Degree Level',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9)),
+                  style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white.withOpacity(0.9)),
                 ),
               ),
             ),
           ),
 
-          // Welcome message
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Welcome, $userName',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: primary),
-              ),
+          // Scrollable content
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                // Welcome message
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Welcome, $userName',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: primary),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // degrees + search + bottom buttons
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      ...children,
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-
-          // content (degrees + search + buttons)
-          ...children,
         ],
       ),
     );
   }
 
   Widget _buildDegreeDropdown() {
-  return DropdownButtonFormField<String?>(
-    value: _selectedDegreeId,
-    decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Degree'),
-    items: [
-      const DropdownMenuItem<String?>(value: null, child: Text('All Degrees')),
-      ..._degreeDocs.map((d) {
-        final display = (d.data()['displayName'] as String?) ?? d.id;
-        return DropdownMenuItem<String?>(value: d.id, child: Text(display));
-      }),
-    ],
-    onChanged: (v) async {
-      setState(() => _selectedDegreeId = v);
-      await _loadDepartmentsForDegree(v);
-    },
-  );
-}
-
-Widget _buildDepartmentDropdown() {
-  if (_loadingDepartments) {
-    return const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()));
+    return DropdownButtonFormField<String?>(
+      value: _selectedDegreeId,
+      decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Degree'),
+      items: [
+        const DropdownMenuItem<String?>(value: null, child: Text('All Degrees')),
+        ..._degreeDocs.map((d) {
+          final display = (d.data()['displayName'] as String?) ?? d.id;
+          return DropdownMenuItem<String?>(value: d.id, child: Text(display));
+        }),
+      ],
+      onChanged: (v) async {
+        setState(() => _selectedDegreeId = v);
+        await _loadDepartmentsForDegree(v);
+      },
+    );
   }
 
-  return DropdownButtonFormField<String?>(
-    value: _selectedDepartmentId,
-    decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Department'),
-    items: [
-      const DropdownMenuItem<String?>(value: null, child: Text('All Departments')),
-      ..._departmentDocs.map((d) {
-        final display = (d.data()['displayName'] as String?) ?? d.id;
-        return DropdownMenuItem<String?>(value: d.id, child: Text(display));
-      }),
-    ],
-    onChanged: (v) async {
-      setState(() => _selectedDepartmentId = v);
-      await _loadYearsFor(_selectedDegreeId, v);
-    },
-  );
-}
+  Widget _buildDepartmentDropdown() {
+    if (_loadingDepartments) {
+      return const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()));
+    }
 
-Widget _buildYearDropdown() {
-  if (_loadingYears) {
-    return const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()));
+    return DropdownButtonFormField<String?>(
+      value: _selectedDepartmentId,
+      decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Department'),
+      items: [
+        const DropdownMenuItem<String?>(value: null, child: Text('All Departments')),
+        ..._departmentDocs.map((d) {
+          final display = (d.data()['displayName'] as String?) ?? d.id;
+          return DropdownMenuItem<String?>(value: d.id, child: Text(display));
+        }),
+      ],
+      onChanged: (v) async {
+        setState(() => _selectedDepartmentId = v);
+        await _loadYearsFor(_selectedDegreeId, v);
+      },
+    );
   }
 
-  return DropdownButtonFormField<String?>(
-    value: _selectedYearId,
-    decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Year'),
-    items: [
-      const DropdownMenuItem<String?>(value: null, child: Text('All Years')),
-      ..._yearDocs.map((d) {
-        final display = (d.data()['displayName'] as String?) ?? (d.data()['value']?.toString() ?? d.id);
-        return DropdownMenuItem<String?>(value: d.id, child: Text(display));
-      }),
-    ],
-    onChanged: (v) async {
-      setState(() => _selectedYearId = v);
-      await _loadSemestersFor(_selectedDegreeId, _selectedDepartmentId, v);
-    },
-  );
-}
+  Widget _buildYearDropdown() {
+    if (_loadingYears) {
+      return const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()));
+    }
 
-Widget _buildSemesterDropdown() {
-  if (_loadingSemesters) {
-    return const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()));
+    return DropdownButtonFormField<String?>(
+      value: _selectedYearId,
+      decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Year'),
+      items: [
+        const DropdownMenuItem<String?>(value: null, child: Text('All Years')),
+        ..._yearDocs.map((d) {
+          final display = (d.data()['displayName'] as String?) ?? (d.data()['value']?.toString() ?? d.id);
+          return DropdownMenuItem<String?>(value: d.id, child: Text(display));
+        }),
+      ],
+      onChanged: (v) async {
+        setState(() => _selectedYearId = v);
+        await _loadSemestersFor(_selectedDegreeId, _selectedDepartmentId, v);
+      },
+    );
   }
 
-  return DropdownButtonFormField<String?>(
-    value: _selectedSemesterId,
-    decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Semester'),
-    items: [
-      const DropdownMenuItem<String?>(value: null, child: Text('All Semesters')),
-      ..._semesterDocs.map((d) {
-        final display = (d.data()['displayName'] as String?) ?? (d.data()['value']?.toString() ?? d.id);
-        return DropdownMenuItem<String?>(value: d.id, child: Text(display));
-      }),
-    ],
-    onChanged: (v) => setState(() => _selectedSemesterId = v),
-  );
-}
+  Widget _buildSemesterDropdown() {
+    if (_loadingSemesters) {
+      return const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()));
+    }
 
+    return DropdownButtonFormField<String?>(
+      value: _selectedSemesterId,
+      decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Semester'),
+      items: [
+        const DropdownMenuItem<String?>(value: null, child: Text('All Semesters')),
+        ..._semesterDocs.map((d) {
+          final display = (d.data()['displayName'] as String?) ?? (d.data()['value']?.toString() ?? d.id);
+          return DropdownMenuItem<String?>(value: d.id, child: Text(display));
+        }),
+      ],
+      onChanged: (v) => setState(() => _selectedSemesterId = v),
+    );
+  }
 }
 
 /// Results screen that queries collectionGroup('subjects') and filters
