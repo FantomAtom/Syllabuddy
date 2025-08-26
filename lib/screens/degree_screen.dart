@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:syllabuddy/screens/landingScreen.dart';
+import 'package:syllabuddy/theme.dart';
 import 'department_screen.dart';
 import 'subject_syllabus_screen.dart';
 import 'profile_screen.dart';
@@ -279,34 +280,6 @@ class _CoursesScreenState extends State<CoursesScreen> {
                           color: Colors.white.withOpacity(0.9)),
                     ),
                   ),
-
-                  // profile button on the top-right (safe from status bar & rounded corner)
-                  Positioned(
-                    right: 16,
-                    // push down by the system status bar height so the avatar isn't clipped
-                    top: MediaQuery.of(context).padding.top + (-30),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(100),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                          );
-                        },
-                        child: const Padding(
-                          padding: EdgeInsets.all(6.0), // small touch target padding
-                          child: CircleAvatar(
-                            radius: 20,
-                            backgroundColor: Colors.white24,
-                            child: Icon(Icons.person, color: Colors.white, size: 20),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
                 ],
               ),
             ),
@@ -317,17 +290,42 @@ class _CoursesScreenState extends State<CoursesScreen> {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                // Welcome message
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Welcome, $userName',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: primary),
+              // Welcome message + profile button row
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Welcome, $userName',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: primary,
+                        ),
+                      ),
                     ),
-                  ),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(100),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(6.0),
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundColor: Theme.of(context).primaryColor,
+                          child: Icon(Icons.person, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+
 
                 const SizedBox(height: 8),
 
