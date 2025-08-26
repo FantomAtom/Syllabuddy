@@ -192,7 +192,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
     // Search UI widget (to be placed in same scroll view)
     final searchSection = Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
