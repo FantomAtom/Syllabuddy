@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:syllabuddy/screens/landingScreen.dart';
 import 'department_screen.dart';
 import 'subject_syllabus_screen.dart';
+import 'profile_screen.dart';
 
 class CoursesScreen extends StatefulWidget {
   const CoursesScreen({Key? key}) : super(key: key);
@@ -248,59 +249,12 @@ class _CoursesScreenState extends State<CoursesScreen> {
       ),
     );
 
-    // Logout & delete UI (kept at bottom of scroll)
-    final bottomButtons = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Column(
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.logout),
-              label: const Text('Logout'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LandingScreen()),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.delete_forever),
-              label: const Text('Delete Account'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              onPressed: () {
-                // TODO: delete account logic
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-
-    // Combine degree widgets + search + bottom buttons into a single scrollable list
+    // Combine degree widgets + search into a single scrollable list
     final children = <Widget>[];
     children.add(const SizedBox(height: 16));
     children.addAll(degreeWidgets);
     children.add(const SizedBox(height: 8));
     children.add(searchSection);
-    children.add(const SizedBox(height: 8));
-    children.add(bottomButtons);
     children.add(const SizedBox(height: 24));
 
     return Scaffold(
@@ -314,14 +268,46 @@ class _CoursesScreenState extends State<CoursesScreen> {
               width: double.infinity,
               color: primary,
               padding: const EdgeInsets.only(top: 80, bottom: 40),
-              child: Center(
-                child: Text(
-                  'Select Degree Level',
-                  style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white.withOpacity(0.9)),
-                ),
+              child: Stack(
+                children: [
+                  Center(
+                    child: Text(
+                      'Select Degree Level',
+                      style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white.withOpacity(0.9)),
+                    ),
+                  ),
+
+                  // profile button on the top-right (safe from status bar & rounded corner)
+                  Positioned(
+                    right: 16,
+                    // push down by the system status bar height so the avatar isn't clipped
+                    top: MediaQuery.of(context).padding.top + (-30),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(100),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                          );
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.all(6.0), // small touch target padding
+                          child: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: Colors.white24,
+                            child: Icon(Icons.person, color: Colors.white, size: 20),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
               ),
             ),
           ),
@@ -345,7 +331,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
                 const SizedBox(height: 8),
 
-                // degrees + search + bottom buttons
+                // degrees + search
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
