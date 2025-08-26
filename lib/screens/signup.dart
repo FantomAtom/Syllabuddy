@@ -49,7 +49,7 @@ class _SignUpPageState extends State<SignUpPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Image.asset('assets/logo.png', height: 100),
+                  Image.asset('assets/icon.png', height: 100),
                   const SizedBox(height: 16),
                   Text(
                     'Create an Account!',
