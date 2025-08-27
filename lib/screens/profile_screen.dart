@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ added
 import 'package:syllabuddy/screens/landingScreen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -71,6 +72,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
+
+    // ✅ Clear login state
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('isLoggedIn');
+
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
@@ -101,12 +107,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (confirmed == true) {
       try {
         final uid = _user?.uid;
-        // Delete Firestore user doc
         if (uid != null) {
           await FirebaseFirestore.instance.collection('users').doc(uid).delete();
         }
-        // Delete auth account
         await _user?.delete();
+
+        // ✅ Clear login state
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('isLoggedIn');
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Account deleted successfully.')));
@@ -130,87 +139,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  bool _isEditing = false; // add this at the top of your State
+  bool _isEditing = false;
 
-Future<void> _editProfile(BuildContext context) async {
-  if (_isEditing) return; // prevent multiple dialogs
-  _isEditing = true;
+  Future<void> _editProfile(BuildContext context) async {
+    if (_isEditing) return;
+    _isEditing = true;
 
-  // Split the cached name safely
-  final parts = (_name ?? "").split(" ");
-  final firstName = parts.isNotEmpty ? parts.first : "";
-  final lastName = parts.length > 1 ? parts.sublist(1).join(" ") : "";
+    final parts = (_name ?? "").split(" ");
+    final firstName = parts.isNotEmpty ? parts.first : "";
+    final lastName = parts.length > 1 ? parts.sublist(1).join(" ") : "";
 
-  final firstNameController = TextEditingController(text: firstName);
-  final lastNameController = TextEditingController(text: lastName);
+    final firstNameController = TextEditingController(text: firstName);
+    final lastNameController = TextEditingController(text: lastName);
 
-  await showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Edit Profile"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: firstNameController,
-              decoration: const InputDecoration(
-                labelText: "First Name",
-                border: OutlineInputBorder(),
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text("Edit Profile"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: firstNameController,
+                decoration: const InputDecoration(
+                  labelText: "First Name",
+                  border: OutlineInputBorder(),
+                ),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: lastNameController,
+                decoration: const InputDecoration(
+                  labelText: "Last Name",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text("Cancel"),
+              onPressed: () => Navigator.pop(context),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: lastNameController,
-              decoration: const InputDecoration(
-                labelText: "Last Name",
-                border: OutlineInputBorder(),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
               ),
+              child: const Text("Save"),
+              onPressed: () async {
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(_user!.uid)
+                      .update({
+                    'firstName': firstNameController.text.trim(),
+                    'lastName': lastNameController.text.trim(),
+                  });
+                  Navigator.pop(context);
+                  _fetchProfile();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Profile updated successfully')),
+                  );
+                } catch (e) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to update profile: $e')),
+                  );
+                }
+              },
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            child: const Text("Cancel"),
-            onPressed: () => Navigator.pop(context),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text("Save"),
-            onPressed: () async {
-              try {
-                await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(_user!.uid)
-                    .update({
-                  'firstName': firstNameController.text.trim(),
-                  'lastName': lastNameController.text.trim(),
-                });
-                Navigator.pop(context);
-                _fetchProfile(); // refresh UI
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profile updated successfully')),
-                );
-              } catch (e) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to update profile: $e')),
-                );
-              }
-            },
-          ),
-        ],
-      );
-    },
-  );
+        );
+      },
+    );
 
-  _isEditing = false; // reset after dialog closes
-}
-
+    _isEditing = false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +228,6 @@ Future<void> _editProfile(BuildContext context) async {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Top curved banner
                 ClipRRect(
                   borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(40),
@@ -253,9 +259,7 @@ Future<void> _editProfile(BuildContext context) async {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
@@ -270,8 +274,6 @@ Future<void> _editProfile(BuildContext context) async {
                           style:
                               TextStyle(fontSize: 14, color: Colors.grey[700])),
                       const SizedBox(height: 20),
-
-                      // Info card
                       Card(
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
@@ -291,8 +293,6 @@ Future<void> _editProfile(BuildContext context) async {
                         ),
                       ),
                       const SizedBox(height: 24),
-
-                      // Edit profile button
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
@@ -309,8 +309,6 @@ Future<void> _editProfile(BuildContext context) async {
                         ),
                       ),
                       const SizedBox(height: 12),
-
-                      // Theme toggle button (dummy for now)
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
@@ -329,8 +327,6 @@ Future<void> _editProfile(BuildContext context) async {
                         ),
                       ),
                       const SizedBox(height: 12),
-
-                      // Logout button
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
@@ -347,8 +343,6 @@ Future<void> _editProfile(BuildContext context) async {
                         ),
                       ),
                       const SizedBox(height: 12),
-
-                      // Delete account
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(

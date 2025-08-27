@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup.dart';
 import 'degree_screen.dart'; // CoursesScreen
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -65,6 +66,10 @@ class _LoginPageState extends State<LoginPage> {
       email: _emailCtrl.text.trim(),
       password: _passwordCtrl.text.trim(),
     );
+
+    // ✅ Save login state locally
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
 
     final current = credential.user;
     if (current == null) {
