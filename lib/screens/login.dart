@@ -201,7 +201,6 @@ class _LoginPageState extends State<LoginPage> {
                         physics: const BouncingScrollPhysics(),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text('Welcome back', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 6),
