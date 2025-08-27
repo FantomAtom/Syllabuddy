@@ -1,6 +1,7 @@
 // lib/screens/degrees_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // ✅ added for user name
 import 'package:syllabuddy/screens/landingScreen.dart';
 import 'package:syllabuddy/theme.dart';
 import 'department_screen.dart';
@@ -35,10 +36,43 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  // ✅ User display name (minimal change replacing hardcoded "John")
+  String? _userName;
+  bool _loadingUser = true;
+
   @override
   void initState() {
     super.initState();
     _loadDegrees();
+    _fetchUserName(); // ✅ fetch the logged-in user's name
+  }
+
+  Future<void> _fetchUserName() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() {
+          _userName = "User";
+          _loadingUser = false;
+        });
+        return;
+      }
+
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final data = doc.data();
+      final last = data?['lastName'] ?? '';
+      setState(() {
+        _userName = "$last".trim().isEmpty ? "User" : "$last".trim();
+        _loadingUser = false;
+      });
+    } catch (e) {
+      debugPrint("Failed to fetch user name: $e");
+      setState(() {
+        _userName = "User";
+        _loadingUser = false;
+      });
+    }
   }
 
   Future<void> _loadDegrees() async {
@@ -62,7 +96,8 @@ class _CoursesScreenState extends State<CoursesScreen> {
       return;
     }
 
-    final snap = await _db.collection('degree-level').doc(degreeId).collection('department').get();
+    final snap =
+        await _db.collection('degree-level').doc(degreeId).collection('department').get();
     setState(() {
       _departmentDocs = snap.docs;
       _loadingDepartments = false;
@@ -97,7 +132,8 @@ class _CoursesScreenState extends State<CoursesScreen> {
     });
   }
 
-  Future<void> _loadSemestersFor(String? degreeId, String? departmentId, String? yearId) async {
+  Future<void> _loadSemestersFor(
+      String? degreeId, String? departmentId, String? yearId) async {
     setState(() {
       _loadingSemesters = true;
       _semesterDocs = [];
@@ -152,7 +188,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
-    const userName = 'John';
+    final userName = _loadingUser ? '...' : (_userName ?? 'User'); // ✅ minimal change
 
     // Build degree cards widgets
     final degreeWidgets = <Widget>[];
@@ -290,42 +326,41 @@ class _CoursesScreenState extends State<CoursesScreen> {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-              // Welcome message + profile button row
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Welcome, $userName',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: primary,
+                // Welcome message + profile button row
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Welcome, $userName', // ✅ uses real name
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: primary,
+                          ),
                         ),
                       ),
-                    ),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(100),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(6.0),
-                        child: CircleAvatar(
-                          radius: 20,
-                          backgroundColor: Theme.of(context).primaryColor,
-                          child: Icon(Icons.person, color: Colors.white, size: 20),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(100),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(6.0),
+                          child: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: Theme.of(context).primaryColor,
+                            child: const Icon(Icons.person, color: Colors.white, size: 20),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-
 
                 const SizedBox(height: 8),
 
@@ -532,7 +567,9 @@ class SubjectsResultsScreen extends StatelessWidget {
             itemBuilder: (context, i) {
               final doc = filtered[i];
               final data = doc.data();
-              final title = (data?['displayName'] as String?) ?? (data?['title'] as String?) ?? doc.id;
+              final title = (data?['displayName'] as String?) ??
+                  (data?['title'] as String?) ??
+                  doc.id;
               final subtitle = _formatShortPath(doc);
 
               return ElevatedButton(
@@ -549,7 +586,8 @@ class SubjectsResultsScreen extends StatelessWidget {
                   final year = pathMap['year'] ?? '';
                   final sem = pathMap['semester'] ?? '';
                   final subjectId = doc.id;
-                  final subjectName = (data?['displayName'] as String?) ?? (data?['title'] as String?);
+                  final subjectName =
+                      (data?['displayName'] as String?) ?? (data?['title'] as String?);
 
                   Navigator.push(
                     context,
@@ -571,9 +609,12 @@ class SubjectsResultsScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                          Text(title,
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                           const SizedBox(height: 6),
-                          Text(subtitle, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+                          Text(subtitle,
+                              style: const TextStyle(fontSize: 13, color: Colors.white70)),
                         ],
                       ),
                     ),
