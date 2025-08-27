@@ -1,11 +1,10 @@
 // lib/screens/degrees_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:syllabuddy/screens/landingScreen.dart';
-import 'package:syllabuddy/theme.dart';
-import 'department_screen.dart';
-import 'subject_syllabus_screen.dart';
-import 'profile_screen.dart';
+import 'package:syllabuddy/screens/profile_screen.dart';
+import 'package:syllabuddy/screens/department_screen.dart';
+import 'package:syllabuddy/screens/subject_syllabus_screen.dart';
+import '../widgets/option_card.dart';
 
 class CoursesScreen extends StatefulWidget {
   const CoursesScreen({Key? key}) : super(key: key);
@@ -149,17 +148,13 @@ class _CoursesScreenState extends State<CoursesScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
-    const userName = 'John';
-
-    // Build degree cards widgets
+  // Helper to build degree card widgets
+  List<Widget> _buildDegreeWidgets(Color primary) {
     final degreeWidgets = <Widget>[];
     if (_degreeDocs.isEmpty) {
       degreeWidgets.add(const Center(child: CircularProgressIndicator()));
     } else {
-      // Order UG then PG
+      // Order UG then PG if present
       final mapById = {for (var d in _degreeDocs) d.id.toUpperCase(): d};
       final ordered = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
       if (mapById.containsKey('UG')) ordered.add(mapById['UG']!);
@@ -181,172 +176,32 @@ class _CoursesScreenState extends State<CoursesScreen> {
             lowerDisplay.contains('post graduate');
         final icon = isPg ? Icons.workspace_premium : Icons.school;
 
-        degreeWidgets.add(_CourseCard(
-          title: displayName,
-          icon: icon,
+        degreeWidgets.add(GestureDetector(
           onTap: () => _navigateToDept(context, doc.id),
-        ));
-        degreeWidgets.add(const SizedBox(height: 24));
-      }
-    }
-
-    // Search UI widget (to be placed in same scroll view)
-    final searchSection = Padding(
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Search Syllabus',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primary)),
-          const SizedBox(height: 12),
-
-          // Degree dropdown
-          _buildDegreeDropdown(),
-
-          const SizedBox(height: 8),
-
-          // Department dropdown
-          _buildDepartmentDropdown(),
-
-          const SizedBox(height: 8),
-
-          // Year & Semester
-          Row(
-            children: [
-              Expanded(child: _buildYearDropdown()),
-              const SizedBox(width: 12),
-              Expanded(child: _buildSemesterDropdown()),
-            ],
-          ),
-
-          const SizedBox(height: 8),
-
-          // Subject search field
-          TextField(
-            decoration: const InputDecoration(
-              labelText: 'Subject name or code (optional)',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.search),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 4))],
             ),
-            onChanged: (v) => setState(() => _subjectQuery = v.trim()),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Search button
-          SizedBox(
-            height: 48,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.search),
-              label: const Text('Search'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: _onSearchPressed,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    // Combine degree widgets + search into a single scrollable list
-    final children = <Widget>[];
-    children.add(const SizedBox(height: 16));
-    children.addAll(degreeWidgets);
-    children.add(const SizedBox(height: 8));
-    children.add(searchSection);
-    children.add(const SizedBox(height: 24));
-
-    return Scaffold(
-      body: Column(
-        children: [
-          // Fixed Top curved banner (stays on top while rest scrolls)
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
-            child: Container(
-              width: double.infinity,
-              color: primary,
-              padding: const EdgeInsets.only(top: 80, bottom: 40),
-              child: Stack(
-                children: [
-                  Center(
-                    child: Text(
-                      'Select Degree Level',
-                      style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white.withOpacity(0.9)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Scrollable content
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
+            padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+            child: Row(
               children: [
-              // Welcome message + profile button row
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Welcome, $userName',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: primary,
-                        ),
-                      ),
-                    ),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(100),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(6.0),
-                        child: CircleAvatar(
-                          radius: 20,
-                          backgroundColor: Theme.of(context).primaryColor,
-                          child: Icon(Icons.person, color: Colors.white, size: 20),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-
-                const SizedBox(height: 8),
-
-                // degrees + search
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    children: [
-                      ...children,
-                    ],
-                  ),
-                ),
+                Icon(icon, size: 36, color: primary),
+                const SizedBox(width: 12),
+                Expanded(child: Text(displayName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: primary))),
+                const Icon(Icons.arrow_forward_ios, size: 16),
               ],
             ),
           ),
-        ],
-      ),
-    );
+        ));
+      }
+    }
+    return degreeWidgets;
   }
 
-  Widget _buildDegreeDropdown() {
+  // --- widgets for dropdowns ---
+  Widget _degreeDropdown(Color primary) {
     return DropdownButtonFormField<String?>(
       value: _selectedDegreeId,
       decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Degree'),
@@ -364,11 +219,10 @@ class _CoursesScreenState extends State<CoursesScreen> {
     );
   }
 
-  Widget _buildDepartmentDropdown() {
+  Widget _departmentDropdown() {
     if (_loadingDepartments) {
       return const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()));
     }
-
     return DropdownButtonFormField<String?>(
       value: _selectedDepartmentId,
       decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Department'),
@@ -386,11 +240,10 @@ class _CoursesScreenState extends State<CoursesScreen> {
     );
   }
 
-  Widget _buildYearDropdown() {
+  Widget _yearDropdown() {
     if (_loadingYears) {
       return const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()));
     }
-
     return DropdownButtonFormField<String?>(
       value: _selectedYearId,
       decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Year'),
@@ -408,11 +261,10 @@ class _CoursesScreenState extends State<CoursesScreen> {
     );
   }
 
-  Widget _buildSemesterDropdown() {
+  Widget _semesterDropdown() {
     if (_loadingSemesters) {
       return const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()));
     }
-
     return DropdownButtonFormField<String?>(
       value: _selectedSemesterId,
       decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Semester'),
@@ -426,10 +278,237 @@ class _CoursesScreenState extends State<CoursesScreen> {
       onChanged: (v) => setState(() => _selectedSemesterId = v),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).primaryColor;
+    const userName = 'John';
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final isDesktop = constraints.maxWidth >= 800;
+
+      if (isDesktop) {
+        // Desktop: centered content column, top appbar + search toolbar + degree grid
+        return Scaffold(
+          backgroundColor: Colors.grey[50],
+          appBar: AppBar(
+            elevation: 0,
+            backgroundColor: Colors.white,
+            titleSpacing: 20,
+            title: Row(
+              children: [
+                Image.asset('assets/icon.png', height: 34),
+                const SizedBox(width: 12),
+                Text('Syllabuddy', style: TextStyle(color: primary, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Center(child: Text('Welcome, $userName', style: TextStyle(color: primary, fontWeight: FontWeight.w600))),
+              ),
+              IconButton(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
+                icon: CircleAvatar(radius: 16, backgroundColor: primary, child: const Icon(Icons.person, color: Colors.white, size: 18)),
+              ),
+              const SizedBox(width: 12),
+            ],
+          ),
+          body: SingleChildScrollView(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1100),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // hero
+                      Text('Select Degree Level', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: primary)),
+                      const SizedBox(height: 6),
+                      Text('Find syllabi by degree, department, year or semester. Use filters or browse degree cards below.', style: TextStyle(color: Colors.grey[700])),
+                      const SizedBox(height: 20),
+
+                      // Search toolbar (card)
+                      Card(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            children: [
+                              // row with dropdowns
+                              Row(
+                                children: [
+                                  Expanded(child: _degreeDropdown(primary)),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: _departmentDropdown()),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: _yearDropdown()),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: _semesterDropdown()),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      decoration: const InputDecoration(
+                                        border: OutlineInputBorder(),
+                                        hintText: 'Subject name or code (optional)',
+                                        prefixIcon: Icon(Icons.search),
+                                      ),
+                                      onChanged: (v) => setState(() => _subjectQuery = v.trim()),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 15),
+                                  SizedBox(
+                                    height: 48,
+                                    child: ElevatedButton.icon(
+                                      onPressed: _onSearchPressed,
+                                      icon: const Icon(Icons.search),
+                                      label: const Text('Search'),
+                                      style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Degrees grid
+                      Text('Degrees', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primary)),
+                      const SizedBox(height: 12),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _degreeDocs.isEmpty ? 4 : _degreeDocs.length,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 14,
+                          crossAxisSpacing: 14,
+                          childAspectRatio: 3.2,
+                        ),
+                        itemBuilder: (context, i) {
+                          final widgets = _buildDegreeWidgets(primary);
+                          // if not loaded, show placeholders
+                          if (widgets.isEmpty) {
+                            return Container(
+                              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                              height: 80,
+                              child: const Center(child: CircularProgressIndicator()),
+                            );
+                          }
+                          return widgets[i];
+                        },
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Footer / additional content
+                      Center(child: Text('Tip: Click a degree card to explore departments', style: TextStyle(color: Colors.grey[600]))),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      // Mobile: keep original curved banner + list
+      return Scaffold(
+        body: Column(
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
+              child: Container(
+                width: double.infinity,
+                color: primary,
+                padding: const EdgeInsets.only(top: 80, bottom: 40),
+                child: Center(
+                  child: Text('Select Degree Level', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9))),
+                ),
+              ),
+            ),
+
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                    child: Row(
+                      children: [
+                        Expanded(child: Text('Welcome, $userName', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: primary))),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(100),
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
+                          child: Padding(
+                            padding: const EdgeInsets.all(6.0),
+                            child: CircleAvatar(radius: 20, backgroundColor: primary, child: const Icon(Icons.person, color: Colors.white, size: 20)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 16),
+                        ..._buildDegreeWidgets(primary),
+                        const SizedBox(height: 12),
+
+                        // search section (mobile)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const Text('Search Syllabus', style: TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 8),
+                                _degreeDropdown(primary),
+                                const SizedBox(height: 8),
+                                _departmentDropdown(),
+                                const SizedBox(height: 8),
+                                Row(children: [Expanded(child: _yearDropdown()), const SizedBox(width: 8), Expanded(child: _semesterDropdown())]),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  decoration: const InputDecoration(border: OutlineInputBorder(), hintText: 'Subject name or code', prefixIcon: Icon(Icons.search)),
+                                  onChanged: (v) => setState(() => _subjectQuery = v.trim()),
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(height: 48, child: ElevatedButton.icon(onPressed: _onSearchPressed, icon: const Icon(Icons.search), label: const Text('Search'))),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
 }
 
-/// Results screen that queries collectionGroup('subjects') and filters
-/// client-side by the selected path parts and search query.
+/// Minimal results screen included so the Search button works.
+/// You can replace this with your own results screen if you already have one.
 class SubjectsResultsScreen extends StatelessWidget {
   final String? degreeId;
   final String? departmentId;
@@ -450,9 +529,7 @@ class SubjectsResultsScreen extends StatelessWidget {
     final segs = path.split('/');
     final map = <String, String>{};
     for (var i = 0; i + 1 < segs.length; i += 2) {
-      final key = segs[i];
-      final val = segs[i + 1];
-      map[key] = val;
+      map[segs[i]] = segs[i + 1];
     }
     return map;
   }
@@ -477,7 +554,6 @@ class SubjectsResultsScreen extends StatelessWidget {
       if (p == null || p.toLowerCase() != semesterId!.toLowerCase()) return false;
     }
 
-    // text match against displayName/title or doc id (subject code)
     if (subjectQuery.isNotEmpty) {
       final data = doc.data();
       final name = (data?['displayName'] as String?) ?? (data?['title'] as String?) ?? '';
@@ -511,19 +587,13 @@ class SubjectsResultsScreen extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: stream,
         builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(child: Text('Error: ${snap.error}'));
-          }
+          if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
 
           final allDocs = snap.data!.docs;
           final filtered = allDocs.where((d) => _matchesFilters(d)).toList(growable: false);
 
-          if (filtered.isEmpty) {
-            return const Center(child: Text('No subjects found for these filters.'));
-          }
+          if (filtered.isEmpty) return const Center(child: Text('No subjects found for these filters.'));
 
           return ListView.separated(
             padding: const EdgeInsets.all(12),
@@ -542,7 +612,6 @@ class SubjectsResultsScreen extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () {
-                  // Parse the path into parts and navigate to the SubjectSyllabusScreen
                   final pathMap = _pathToMap(doc.reference.path);
                   final degree = pathMap['degree-level'] ?? '';
                   final department = pathMap['department'] ?? '';
@@ -568,14 +637,11 @@ class SubjectsResultsScreen extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                          const SizedBox(height: 6),
-                          Text(subtitle, style: const TextStyle(fontSize: 13, color: Colors.white70)),
-                        ],
-                      ),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                        const SizedBox(height: 6),
+                        Text(subtitle, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+                      ]),
                     ),
                     const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white),
                   ],
@@ -584,43 +650,6 @@ class SubjectsResultsScreen extends StatelessWidget {
             },
           );
         },
-      ),
-    );
-  }
-}
-
-class _CourseCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final VoidCallback onTap;
-  const _CourseCard({
-    required this.title,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))],
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-        child: Row(
-          children: [
-            Icon(icon, size: 40, color: primary),
-            const SizedBox(width: 16),
-            Text(title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primary)),
-            const Spacer(),
-            Icon(Icons.arrow_forward_ios, color: primary),
-          ],
-        ),
       ),
     );
   }
