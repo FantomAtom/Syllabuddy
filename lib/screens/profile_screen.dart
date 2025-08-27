@@ -25,50 +25,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchProfile() async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    _logout(context);
-    return;
-  }
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _logout(context);
+      return;
+    }
 
-  try {
-    final doc =
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-    final data = doc.data();
+    try {
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final data = doc.data();
 
-    setState(() {
-      _user = user;
-      _email = user.email;
-      if (data != null) {
-        final firstName = data['firstName'] ?? '';
-        final lastName = data['lastName'] ?? '';
-        _name = "$firstName $lastName".trim();
-      } else {
+      setState(() {
+        _user = user;
+        _email = user.email;
+        if (data != null) {
+          final firstName = data['firstName'] ?? '';
+          final lastName = data['lastName'] ?? '';
+          _name = "$firstName $lastName".trim();
+        } else {
+          _name = 'Unknown';
+        }
+
+        final ts = data?['createdAt'];
+        if (ts != null && ts is Timestamp) {
+          final dt = ts.toDate();
+          _memberSince = "${dt.day}/${dt.month}/${dt.year}";
+        } else {
+          _memberSince = "Unknown";
+        }
+
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Failed to fetch profile: $e');
+      setState(() {
+        _user = user;
+        _email = user.email;
         _name = 'Unknown';
-      }
-
-      final ts = data?['createdAt'];
-      if (ts != null && ts is Timestamp) {
-        final dt = ts.toDate();
-        _memberSince = "${dt.day}/${dt.month}/${dt.year}";
-      } else {
         _memberSince = "Unknown";
-      }
-
-      _loading = false;
-    });
-  } catch (e) {
-    debugPrint('Failed to fetch profile: $e');
-    setState(() {
-      _user = user;
-      _email = user.email;
-      _name = 'Unknown';
-      _memberSince = "Unknown";
-      _loading = false;
-    });
+        _loading = false;
+      });
+    }
   }
-}
-
 
   Future<void> _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
@@ -131,6 +130,88 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  bool _isEditing = false; // add this at the top of your State
+
+Future<void> _editProfile(BuildContext context) async {
+  if (_isEditing) return; // prevent multiple dialogs
+  _isEditing = true;
+
+  // Split the cached name safely
+  final parts = (_name ?? "").split(" ");
+  final firstName = parts.isNotEmpty ? parts.first : "";
+  final lastName = parts.length > 1 ? parts.sublist(1).join(" ") : "";
+
+  final firstNameController = TextEditingController(text: firstName);
+  final lastNameController = TextEditingController(text: lastName);
+
+  await showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("Edit Profile"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: firstNameController,
+              decoration: const InputDecoration(
+                labelText: "First Name",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: lastNameController,
+              decoration: const InputDecoration(
+                labelText: "Last Name",
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Cancel"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Save"),
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(_user!.uid)
+                    .update({
+                  'firstName': firstNameController.text.trim(),
+                  'lastName': lastNameController.text.trim(),
+                });
+                Navigator.pop(context);
+                _fetchProfile(); // refresh UI
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Profile updated successfully')),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to update profile: $e')),
+                );
+              }
+            },
+          ),
+        ],
+      );
+    },
+  );
+
+  _isEditing = false; // reset after dialog closes
+}
+
+
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
@@ -175,16 +256,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 24),
 
-                // Avatar and name
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
                     children: [
-                      const CircleAvatar(
-                        radius: 46,
-                        child: Icon(Icons.person, size: 48),
-                      ),
-                      const SizedBox(height: 12),
                       Text(_name ?? '',
                           style: TextStyle(
                               fontSize: 20,
@@ -216,6 +291,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
+
+                      // Edit profile button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Edit Profile'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueGrey.shade600,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          onPressed: () => _editProfile(context),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Theme toggle button (dummy for now)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.dark_mode),
+                          label: const Text('Toggle Dark/Light Mode'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange.shade600,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          onPressed: () {
+                            // TODO: add dark mode toggle
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
 
                       // Logout button
                       SizedBox(
