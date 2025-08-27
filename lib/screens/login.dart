@@ -61,47 +61,40 @@ class _LoginPageState extends State<LoginPage> {
   setState(() => _isLoading = true);
 
   try {
-    // Try signIn; catch inner exception and fallback to currentUser
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailCtrl.text.trim(),
-        password: _passwordCtrl.text.trim(),
-      );
-    } catch (innerErr, innerStack) {
-      debugPrint('signInWithEmail error (inner): $innerErr');
-      debugPrint('$innerStack');
-    }
+    final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: _emailCtrl.text.trim(),
+      password: _passwordCtrl.text.trim(),
+    );
 
-    final current = FirebaseAuth.instance.currentUser;
+    final current = credential.user;
     if (current == null) {
       throw FirebaseAuthException(code: 'user-not-found', message: 'Sign-in failed.');
     }
 
-    final uid = current.uid;
-    debugPrint('Signed in uid=$uid (using currentUser fallback).');
-
     // Firestore profile read (non-fatal)
     String role = 'student';
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance.collection('users').doc(current.uid).get();
       if (doc.exists) {
         final data = doc.data();
         final fetchedRole = data?['role'];
         if (fetchedRole is String && fetchedRole.isNotEmpty) role = fetchedRole;
-      } else {
-        debugPrint('No profile doc found; continuing as student.');
       }
     } catch (fsErr) {
       debugPrint('Firestore read failed: $fsErr — will continue as student.');
     }
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Signed in as ${current.email}')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Signed in as ${current.email}')),
+    );
 
     if (role == 'student') {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CoursesScreen()));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Staff login detected — staff page not configured.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Staff login detected — staff page not configured.')),
+      );
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CoursesScreen()));
     }
   } on FirebaseAuthException catch (e) {
@@ -114,7 +107,6 @@ class _LoginPageState extends State<LoginPage> {
     if (mounted) setState(() => _isLoading = false);
   }
 }
-
 
   @override
   Widget build(BuildContext context) {
