@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'admin_department_screen.dart';
 
 /// AdminConsole checks staff_emails/{uid}.status and only shows editing UI
 /// if status == 'verified'. Otherwise shows a friendly locked screen.
@@ -127,61 +128,6 @@ class AdminHome extends StatefulWidget {
 
 class _AdminHomeState extends State<AdminHome> {
   final _db = FirebaseFirestore.instance;
-  final TextEditingController _degreeController = TextEditingController();
-
-  Future<void> _addDegree() async {
-    final ctrl = _degreeController;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Create Degree Level'),
-        content: TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Degree id (e.g. UG or PG)')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              if (ctrl.text.trim().isEmpty) return;
-              Navigator.pop(ctx, true);
-            },
-            child: const Text('Create'),
-          )
-        ],
-      ),
-    );
-    if (ok != true) return;
-    final id = ctrl.text.trim();
-    try {
-      await _db.collection('degree-level').doc(id).set({
-        'displayName': id,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      ctrl.clear();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Degree created')));
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
-    }
-  }
-
-  Future<void> _deleteDegree(String id) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text('Delete $id?'),
-        content: const Text('This will delete the degree-level document (subcollections must be removed separately). Continue?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-    try {
-      await _db.collection('degree-level').doc(id).delete();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted')));
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -215,21 +161,10 @@ class _AdminHomeState extends State<AdminHome> {
                   final d = docs[i];
                   final id = d.id;
                   final display = (d.data()['displayName'] ?? id).toString();
-                  return Card(
-                    child: ListTile(
-                      title: Text(display),
-                      subtitle: Text('id: $id'),
-                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                        IconButton(
-                          icon: const Icon(Icons.open_in_new),
-                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DepartmentList(degreeId: id))),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_forever, color: Colors.red),
-                          onPressed: () => _deleteDegree(id),
-                        ),
-                      ]),
-                    ),
+                  return AdminDegreeCard(
+                    degreeId: id,
+                    displayName: display,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminDepartmentList(degreeId: id))),
                   );
                 },
               );
@@ -237,6 +172,86 @@ class _AdminHomeState extends State<AdminHome> {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _addDegree() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Create Degree Level'),
+        content: TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Degree id (e.g. UG or PG)')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (ctrl.text.trim().isEmpty) return;
+              Navigator.pop(ctx, true);
+            },
+            child: const Text('Create'),
+          )
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final id = ctrl.text.trim();
+    try {
+      await _db.collection('degree-level').doc(id).set({
+        'displayName': id,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      ctrl.clear();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Degree created')));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+    }
+  }
+}
+
+/// Clickable degree card component
+class AdminDegreeCard extends StatelessWidget {
+  final String degreeId;
+  final String displayName;
+  final VoidCallback onTap;
+
+  const AdminDegreeCard({
+    Key? key,
+    required this.degreeId,
+    required this.displayName,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(
+                degreeId.toUpperCase().contains('PG') ? Icons.workspace_premium : Icons.school,
+                size: 32,
+                color: Theme.of(context).primaryColor,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(displayName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('ID: $degreeId', style: TextStyle(color: Colors.grey[600])),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
