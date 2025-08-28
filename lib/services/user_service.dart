@@ -85,13 +85,32 @@ class UserService {
     }
   }
 
-  /// Remove documents from both collections (if present) and delete the auth user.
+  /// Delete user profile docs (users & staff_emails) then delete auth account.
+  /// MUST be called after successful reauthentication (or when auth.delete won't throw).
   static Future<void> deleteAccount() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    await _db.collection('users').doc(user.uid).delete().catchError((_) {});
-    await _db.collection('staff_emails').doc(user.uid).delete().catchError((_) {});
+    final uid = user.uid;
+    final userRef = _db.collection('users').doc(uid);
+    final staffRef = _db.collection('staff_emails').doc(uid);
+
+    // Get documents first so we know what to delete
+    final userDoc = await userRef.get();
+    final staffDoc = await staffRef.get();
+
+    // Use a batch so deletes happen together
+    final batch = _db.batch();
+    if (userDoc.exists) batch.delete(userRef);
+    if (staffDoc.exists) batch.delete(staffRef);
+
+    // Commit batch (no-op if there are no deletes)
+    if (userDoc.exists || staffDoc.exists) {
+      await batch.commit();
+    }
+
+    // Now delete auth user
+    // This will fail with requires-recent-login if user hasn't recently authenticated
     await user.delete();
   }
 }

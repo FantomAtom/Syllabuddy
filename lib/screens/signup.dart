@@ -41,7 +41,8 @@ class _SignUpPageState extends State<SignUpPage> {
     if (!mounted) return;
     setState(() => _errorMessage = msg);
     if (msg != null && msg.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
@@ -72,22 +73,29 @@ class _SignUpPageState extends State<SignUpPage> {
     final password = _passwordCtrl.text;
     final firstName = _firstNameCtrl.text.trim();
     final lastName = _lastNameCtrl.text.trim();
-    final studentId = _studentIdCtrl.text.trim().isEmpty ? null : _studentIdCtrl.text.trim();
+    final studentId =
+        _studentIdCtrl.text.trim().isEmpty ? null : _studentIdCtrl.text.trim();
 
     final roleToWrite = _role; // student or staff
 
     try {
-      final userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      // create auth user
+      final userCred = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
 
-      final user = userCred.user ?? FirebaseAuth.instance.currentUser;
+      // get the user (might be immediately available)
+      var user = userCred.user ?? FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('Authentication did not return a user.');
-      final uid = user.uid;
 
+      // force token refresh / reload to avoid the auth -> firestore race
+      await user.reload();
+      user = FirebaseAuth.instance.currentUser;
+      await user?.getIdToken(true);
+
+      final uid = user!.uid;
+
+      // Use UserService so we always write to the correct collection/shape
       if (roleToWrite == 'student') {
-        // Students -> users collection via service
         await UserService.createStudent(uid, {
           'firstName': firstName,
           'lastName': lastName,
@@ -95,18 +103,19 @@ class _SignUpPageState extends State<SignUpPage> {
           'studentId': studentId,
         });
       } else {
-        // Staff -> staff_emails collection via service
         await UserService.createStaff(uid, {
           'firstName': firstName,
           'lastName': lastName,
           'email': email,
-          'status': 'unverified',
+          // status default 'unverified' will be applied by createStaff if omitted
         });
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Account created: ${user.email}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Account created: ${user.email}')));
 
+      // navigate into MainShell
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const MainShell()),
@@ -156,12 +165,18 @@ class _SignUpPageState extends State<SignUpPage> {
                   const SizedBox(height: 16),
                   Text(
                     'Create an Account!',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9)),
+                    style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white.withOpacity(0.9)),
                   ),
                   const SizedBox(height: 20),
                   Text(
                     'Sign up',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9)),
+                    style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white.withOpacity(0.9)),
                   ),
                 ],
               ),
@@ -172,13 +187,17 @@ class _SignUpPageState extends State<SignUpPage> {
             Container(
               width: double.infinity,
               color: Colors.red.withOpacity(0.06),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              child: Text(_errorMessage!,
+                  style: const TextStyle(
+                      color: Colors.red, fontWeight: FontWeight.w600)),
             ),
 
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -188,16 +207,30 @@ class _SignUpPageState extends State<SignUpPage> {
                         Expanded(
                           child: TextFormField(
                             controller: _firstNameCtrl,
-                            decoration: InputDecoration(hintText: 'First Name', filled: true, fillColor: Colors.grey[100], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
-                            validator: (v) => (v == null || v.isEmpty) ? 'Enter first name' : null,
+                            decoration: InputDecoration(
+                                hintText: 'First Name',
+                                filled: true,
+                                fillColor: Colors.grey[100],
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none)),
+                            validator: (v) =>
+                                (v == null || v.isEmpty) ? 'Enter first name' : null,
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: TextFormField(
                             controller: _lastNameCtrl,
-                            decoration: InputDecoration(hintText: 'Last Name', filled: true, fillColor: Colors.grey[100], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
-                            validator: (v) => (v == null || v.isEmpty) ? 'Enter last name' : null,
+                            decoration: InputDecoration(
+                                hintText: 'Last Name',
+                                filled: true,
+                                fillColor: Colors.grey[100],
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none)),
+                            validator: (v) =>
+                                (v == null || v.isEmpty) ? 'Enter last name' : null,
                           ),
                         ),
                       ],
@@ -207,7 +240,14 @@ class _SignUpPageState extends State<SignUpPage> {
                     TextFormField(
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(hintText: 'Email', filled: true, fillColor: Colors.grey[100], prefixIcon: Icon(Icons.email, color: primary), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                      decoration: InputDecoration(
+                          hintText: 'Email',
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          prefixIcon: Icon(Icons.email, color: primary),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none)),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Enter email';
                         if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
@@ -221,10 +261,25 @@ class _SignUpPageState extends State<SignUpPage> {
                     TextFormField(
                       controller: _passwordCtrl,
                       obscureText: _obscurePassword,
-                      decoration: InputDecoration(hintText: 'Password (min 6 chars)', filled: true, fillColor: Colors.grey[100], prefixIcon: Icon(Icons.lock, color: primary), suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _obscurePassword = !_obscurePassword)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                      decoration: InputDecoration(
+                          hintText: 'Password (min 6 chars)',
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          prefixIcon: Icon(Icons.lock, color: primary),
+                          suffixIcon: IconButton(
+                              icon: Icon(_obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility),
+                              onPressed: () => setState(() =>
+                                  _obscurePassword = !_obscurePassword)),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none)),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Enter password';
-                        if (v.length < 6) return 'Password must be at least 6 characters';
+                        if (v.length < 6) {
+                          return 'Password must be at least 6 characters';
+                        }
                         return null;
                       },
                     ),
@@ -232,18 +287,34 @@ class _SignUpPageState extends State<SignUpPage> {
 
                     TextFormField(
                       controller: _studentIdCtrl,
-                      decoration: InputDecoration(hintText: 'Student ID (optional)', filled: true, fillColor: Colors.grey[100], prefixIcon: Icon(Icons.perm_identity, color: primary), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                      decoration: InputDecoration(
+                          hintText: 'Student ID (optional)',
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          prefixIcon:
+                              Icon(Icons.perm_identity, color: primary),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none)),
                     ),
                     const SizedBox(height: 16),
 
                     DropdownButtonFormField<String>(
                       value: _role,
                       items: const [
-                        DropdownMenuItem(value: 'student', child: Text('Student')),
-                        DropdownMenuItem(value: 'staff', child: Text('Staff')),
+                        DropdownMenuItem(
+                            value: 'student', child: Text('Student')),
+                        DropdownMenuItem(
+                            value: 'staff', child: Text('Staff')),
                       ],
-                      onChanged: (v) => setState(() => _role = v ?? 'student'),
-                      decoration: InputDecoration(filled: true, fillColor: Colors.grey[100], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                      onChanged: (v) =>
+                          setState(() => _role = v ?? 'student'),
+                      decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none)),
                     ),
                     const SizedBox(height: 32),
 
@@ -251,8 +322,20 @@ class _SignUpPageState extends State<SignUpPage> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _signUp,
-                        style: ElevatedButton.styleFrom(backgroundColor: primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
-                        child: _isLoading ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Create Account'),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 16)),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2))
+                            : const Text('Create Account'),
                       ),
                     ),
 
@@ -262,7 +345,16 @@ class _SignUpPageState extends State<SignUpPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Text("Already have an account? "),
-                        GestureDetector(onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage())), child: Text('Login', style: TextStyle(color: primary, fontWeight: FontWeight.bold))),
+                        GestureDetector(
+                            onTap: () => Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const LoginPage())),
+                            child: Text('Login',
+                                style: TextStyle(
+                                    color: primary,
+                                    fontWeight: FontWeight.bold))),
+
                       ],
                     ),
                     const SizedBox(height: 12),

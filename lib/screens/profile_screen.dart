@@ -81,45 +81,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _confirmAndDelete(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete account'),
-        content: const Text(
-            'This will permanently delete your account. This action cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    );
+  // 1) confirm they really want to delete
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Delete account'),
+      content: const Text(
+          'This will permanently delete your account and all associated profile data. This action cannot be undone.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+      ],
+    ),
+  );
 
-    if (confirmed == true) {
-      try {
-        await UserService.deleteAccount();
+  if (confirmed != true) return;
 
-        // Clear login state
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('isLoggedIn');
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return _logout(context);
 
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account deleted successfully.')));
-        _logout(context);
-      } on FirebaseAuthException catch (e) {
-        if (!mounted) return;
-        if (e.code == 'requires-recent-login') {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Please log in again to delete your account (security requirement).')));
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete account: ${e.message}')));
-        }
-      } catch (e) {
-        debugPrint('Delete account error: $e');
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unexpected error deleting account.')));
-      }
+  // Note: we removed the password prompt (per your request).
+  // Attempt delete directly; if Firebase requires recent login, it will throw
+  // FirebaseAuthException with code 'requires-recent-login' which we catch and show a friendly message.
+  try {
+    await UserService.deleteAccount();
+
+    // Clear login state
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('isLoggedIn');
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account deleted successfully.')));
+    _logout(context);
+  } on FirebaseAuthException catch (e) {
+    if (!mounted) return;
+    if (e.code == 'requires-recent-login') {
+      // This is the normal security guard — user needs to reauthenticate.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in again (recent login required) and retry account deletion.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete account: ${e.message}')));
     }
+  } on FirebaseException catch (e) {
+    // Firestore permission or other Firestore exceptions
+    if (!mounted) return;
+    if (e.code == 'permission-denied') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Delete failed due to Firestore security rules: ${e.message}')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete account: ${e.message}')));
+    }
+  } catch (e) {
+    debugPrint('Delete account error: $e');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unexpected error deleting account: $e')));
   }
+}
+
 
   bool _isEditing = false;
 
