@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:syllabuddy/screens/main_shell.dart';
 import 'signup.dart';
 import 'degree_screen.dart'; // CoursesScreen
 import 'package:shared_preferences/shared_preferences.dart';
@@ -68,8 +69,8 @@ class _LoginPageState extends State<LoginPage> {
     );
 
     // ✅ Save login state locally
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', true);
 
     final current = credential.user;
     if (current == null) {
@@ -94,14 +95,11 @@ class _LoginPageState extends State<LoginPage> {
       SnackBar(content: Text('Signed in as ${current.email}')),
     );
 
-    if (role == 'student') {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CoursesScreen()));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Staff login detected — staff page not configured.')),
-      );
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CoursesScreen()));
-    }
+    // ✅ Instead of CoursesScreen → go to MainShell
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const MainShell()),
+    );
   } on FirebaseAuthException catch (e) {
     _setError(_mapAuthException(e));
   } catch (e, st) {
@@ -112,6 +110,7 @@ class _LoginPageState extends State<LoginPage> {
     if (mounted) setState(() => _isLoading = false);
   }
 }
+
 
   @override
   Widget build(BuildContext context) {

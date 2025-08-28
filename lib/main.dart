@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'theme.dart';
 import 'screens/landingScreen.dart';
-import 'screens/degree_screen.dart';
+import 'screens/main_shell.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,36 +11,8 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  bool? _isLoggedIn;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkLoginStatus();
-  }
-
-  Future<void> _checkLoginStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedLogin = prefs.getBool('isLoggedIn') ?? false;
-
-    // If Firebase still has a user, keep them logged in
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      _isLoggedIn = true;
-    } else {
-      _isLoggedIn = savedLogin;
-    }
-
-    setState(() {});
-  }
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -49,13 +20,30 @@ class _MyAppState extends State<MyApp> {
       title: 'Syllabuddy',
       debugShowCheckedModeBanner: false,
       theme: appTheme,
-      home: _isLoggedIn == null
-          ? const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            )
-          : _isLoggedIn!
-              ? const CoursesScreen()
-              : const LandingScreen(),
+      home: const RootDecider(),
+    );
+  }
+}
+
+/// RootDecider shows the appropriate initial screen depending on Firebase auth state
+class RootDecider extends StatelessWidget {
+  const RootDecider({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        final user = snap.data;
+        if (user == null) {
+          return const LandingScreen();
+        } else {
+          return const MainShell();
+        }
+      },
     );
   }
 }

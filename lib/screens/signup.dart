@@ -1,6 +1,8 @@
+// lib/screens/signup.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:syllabuddy/screens/main_shell.dart';
 import 'login.dart';
 import 'degree_screen.dart';
 
@@ -61,76 +63,83 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Future<void> _signUp() async {
-  _setError(null);
-  if (!(_formKey.currentState?.validate() ?? false)) return;
+    _setError(null);
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
-  setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-  UserCredential? createdUser;
-  try {
-    // Attempt to create user (this may THROW the pigeon type error even after auth succeeds)
+    final email = _emailCtrl.text.trim();
+    final password = _passwordCtrl.text;
+    final firstName = _firstNameCtrl.text.trim();
+    final lastName = _lastNameCtrl.text.trim();
+    final studentId = _studentIdCtrl.text.trim().isEmpty ? null : _studentIdCtrl.text.trim();
+
+    // Now we allow the user to pick 'staff' at signup, but admin access is gated
+    // by staff_emails/{uid}.status === 'verified'
+    final roleToWrite = _role; // 'student' or 'staff'
+
     try {
-      createdUser = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailCtrl.text.trim(),
-        password: _passwordCtrl.text,
+      final userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
       );
-    } catch (innerErr, innerStack) {
-      // log and continue — we'll check currentUser below
-      debugPrint('createUserWithEmail error (inner): $innerErr');
-      debugPrint('$innerStack');
-    }
 
-    // IMPORTANT: check currentUser as definitive sign of success
-    final current = FirebaseAuth.instance.currentUser;
-    if (current == null) {
-      // Auth did NOT succeed
-      throw Exception('Authentication failed (no currentUser).');
-    }
+      final user = userCred.user ?? FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('Authentication did not return a user.');
 
-    final uid = current.uid;
-    debugPrint('Auth succeeded for uid=$uid (using currentUser fallback).');
+      final uid = user.uid;
 
-    // Write profile to Firestore
-    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
-    await userRef.set({
-      'firstName': _firstNameCtrl.text.trim(),
-      'lastName': _lastNameCtrl.text.trim(),
-      'email': _emailCtrl.text.trim(),
-      'studentId': _studentIdCtrl.text.trim().isEmpty ? null : _studentIdCtrl.text.trim(),
-      'role': _role,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+      // Write profile to Firestore
+      final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+      await userRef.set({
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': email,
+        'studentId': studentId,
+        'role': roleToWrite,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Account created: ${current.email}')));
-
-    if (_role == 'student') {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CoursesScreen()));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Staff account created — add staff page.')));
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage()));
-    }
-  } on FirebaseAuthException catch (e) {
-    _setError(_mapSignUpException(e));
-  } catch (e, st) {
-    debugPrint('Unexpected error during signup: $e');
-    debugPrint('$st');
-    _setError('Unexpected error: $e');
-    // Attempt rollback: delete created auth user if any
-    try {
-      final cur = FirebaseAuth.instance.currentUser;
-      if (cur != null) {
-        await cur.delete();
-        debugPrint('Rolled back created auth user due to error.');
+      // If they selected staff, create a staff_emails entry for verification workflow
+      if (roleToWrite == 'staff') {
+        final staffRef = FirebaseFirestore.instance.collection('staff_emails').doc(uid);
+        await staffRef.set({
+          'email': email,
+          'status': 'unverified', // admin will flip to 'verified'
+          'createdAt': FieldValue.serverTimestamp(),
+        });
       }
-    } catch (rbErr) {
-      debugPrint('Rollback failed: $rbErr');
-    }
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
-  }
-}
 
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Account created: ${user.email}')));
+
+      // 🔥 fix: navigate into RootDecider (which decides MainShell vs Landing)
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainShell()),
+        (_) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      _setError(_mapSignUpException(e));
+    } catch (e, st) {
+      debugPrint('Unexpected error during signup: $e');
+      debugPrint('$st');
+      _setError('Unexpected error: $e');
+
+      // rollback created auth user if exists
+      try {
+        final cur = FirebaseAuth.instance.currentUser;
+        if (cur != null) {
+          await cur.delete();
+          debugPrint('Rolled back created auth user due to error.');
+        }
+      } catch (rbErr) {
+        debugPrint('Rollback failed: $rbErr');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

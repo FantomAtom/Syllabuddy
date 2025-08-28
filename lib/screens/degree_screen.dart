@@ -341,23 +341,6 @@ class _CoursesScreenState extends State<CoursesScreen> {
                           ),
                         ),
                       ),
-                      InkWell(
-                        borderRadius: BorderRadius.circular(100),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                          );
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(6.0),
-                          child: CircleAvatar(
-                            radius: 20,
-                            backgroundColor: Theme.of(context).primaryColor,
-                            child: const Icon(Icons.person, color: Colors.white, size: 20),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
