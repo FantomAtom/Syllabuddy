@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syllabuddy/screens/landingScreen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:syllabuddy/services/user_service.dart';
+import 'package:syllabuddy/screens/subject_syllabus_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -81,65 +82,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _confirmAndDelete(BuildContext context) async {
-  // 1) confirm they really want to delete
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Delete account'),
-      content: const Text(
-          'This will permanently delete your account and all associated profile data. This action cannot be undone.'),
-      actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-        TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
-      ],
-    ),
-  );
+    // (same deletion flow you already implemented; kept here for completeness)
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete account'),
+        content: const Text(
+            'This will permanently delete your account and all associated profile data. This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
 
-  if (confirmed != true) return;
+    if (confirmed != true) return;
 
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return _logout(context);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return _logout(context);
 
-  // Note: we removed the password prompt (per your request).
-  // Attempt delete directly; if Firebase requires recent login, it will throw
-  // FirebaseAuthException with code 'requires-recent-login' which we catch and show a friendly message.
-  try {
-    await UserService.deleteAccount();
+    try {
+      await UserService.deleteAccount();
 
-    // Clear login state
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('isLoggedIn');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('isLoggedIn');
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account deleted successfully.')));
-    _logout(context);
-  } on FirebaseAuthException catch (e) {
-    if (!mounted) return;
-    if (e.code == 'requires-recent-login') {
-      // This is the normal security guard — user needs to reauthenticate.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please sign in again (recent login required) and retry account deletion.')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete account: ${e.message}')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account deleted successfully.')));
+      _logout(context);
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      if (e.code == 'requires-recent-login') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please sign in again (recent login required) and retry account deletion.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete account: ${e.message}')));
+      }
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      if (e.code == 'permission-denied') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Delete failed due to Firestore security rules: ${e.message}')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete account: ${e.message}')));
+      }
+    } catch (e) {
+      debugPrint('Delete account error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unexpected error deleting account: $e')));
     }
-  } on FirebaseException catch (e) {
-    // Firestore permission or other Firestore exceptions
-    if (!mounted) return;
-    if (e.code == 'permission-denied') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Delete failed due to Firestore security rules: ${e.message}')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete account: ${e.message}')));
-    }
-  } catch (e) {
-    debugPrint('Delete account error: $e');
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unexpected error deleting account: $e')));
   }
-}
 
+  // open bookmarks screen
+  void _openBookmarks() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const BookmarksScreen()),
+    );
+  }
 
   bool _isEditing = false;
 
@@ -242,6 +244,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
+
+                      // New: View Bookmarked Subjects
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.bookmark),
+                          label: const Text('Bookmarked subjects'),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
+                          onPressed: _openBookmarks,
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
@@ -288,6 +303,213 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ],
             ),
+    );
+  }
+}
+
+/// BookmarksScreen - shows list of bookmarked subject doc paths, resolves titles and navigates
+class BookmarksScreen extends StatefulWidget {
+  const BookmarksScreen({Key? key}) : super(key: key);
+
+  @override
+  State<BookmarksScreen> createState() => _BookmarksScreenState();
+}
+
+class _BookmarksScreenState extends State<BookmarksScreen> {
+  final _db = FirebaseFirestore.instance;
+  bool _loading = true;
+  List<String> _bookmarks = [];
+  List<Map<String, dynamic>> _resolved = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBookmarks();
+  }
+
+  Future<void> _loadBookmarks() async {
+    setState(() {
+      _loading = true;
+      _bookmarks = [];
+      _resolved = [];
+    });
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _loading = false;
+      });
+      return;
+    }
+
+    try {
+      final userSnap = await _db.collection('users').doc(user.uid).get();
+      Map<String, dynamic>? data;
+      if (userSnap.exists) {
+        data = userSnap.data();
+      } else {
+        final staffSnap = await _db.collection('staff_emails').doc(user.uid).get();
+        if (staffSnap.exists) data = staffSnap.data();
+      }
+
+      final List<dynamic>? b = data?['bookmarks'] as List<dynamic>?;
+      if (b == null || b.isEmpty) {
+        setState(() {
+          _bookmarks = [];
+          _resolved = [];
+          _loading = false;
+        });
+        return;
+      }
+
+      _bookmarks = b.map((e) => e.toString()).toList();
+
+      final futures = _bookmarks.map((p) async {
+        try {
+          final docSnap = await _db.doc(p).get();
+          if (docSnap.exists) {
+            final d = docSnap.data() as Map<String, dynamic>? ?? {};
+            final title = (d['displayName'] ?? d['title'] ?? docSnap.id).toString();
+            final segs = p.split('/');
+            String courseLevel = '';
+            String department = '';
+            String year = '';
+            String semester = '';
+            String subjectId = '';
+            for (var i = 0; i + 1 < segs.length; i += 2) {
+              final key = segs[i];
+              final val = segs[i + 1];
+              if (key == 'degree-level') courseLevel = val;
+              if (key == 'department') department = val;
+              if (key == 'year') year = val;
+              if (key == 'semester') semester = val;
+              if (key == 'subjects') subjectId = val;
+            }
+            return {
+              'path': p,
+              'title': title,
+              'courseLevel': courseLevel,
+              'department': department,
+              'year': year,
+              'semester': semester,
+              'subjectId': subjectId,
+            };
+          } else {
+            return {
+              'path': p,
+              'title': '(missing subject)',
+              'courseLevel': '',
+              'department': '',
+              'year': '',
+              'semester': '',
+              'subjectId': '',
+            };
+          }
+        } catch (e) {
+          return {
+            'path': p,
+            'title': '(error)',
+            'courseLevel': '',
+            'department': '',
+            'year': '',
+            'semester': '',
+            'subjectId': '',
+          };
+        }
+      }).toList();
+
+      final results = await Future.wait(futures);
+      setState(() {
+        _resolved = results;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Failed to load bookmarks: $e');
+      setState(() {
+        _bookmarks = [];
+        _resolved = [];
+        _loading = false;
+      });
+    }
+  }
+
+  void _openSubject(Map<String, dynamic> r) {
+    if (r['courseLevel'] == '' || r['subjectId'] == '') {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cannot open missing subject.')));
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SubjectSyllabusScreen(
+          courseLevel: r['courseLevel'] as String,
+          department: r['department'] as String,
+          year: r['year'] as String,
+          semester: r['semester'] as String,
+          subjectId: r['subjectId'] as String,
+          subjectName: r['title'] as String,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _removeBookmark(String path) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userRef = _db.collection('users').doc(user.uid);
+    final staffRef = _db.collection('staff_emails').doc(user.uid);
+
+    try {
+      final userSnap = await userRef.get();
+      if (userSnap.exists) {
+        await userRef.update({'bookmarks': FieldValue.arrayRemove([path])});
+      } else {
+        final staffSnap = await staffRef.get();
+        if (staffSnap.exists) {
+          await staffRef.update({'bookmarks': FieldValue.arrayRemove([path])});
+        } else {
+          // nothing
+        }
+      }
+      await _loadBookmarks();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Removed from bookmarks')));
+    } catch (e) {
+      debugPrint('Failed to remove bookmark: $e');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to remove bookmark: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Bookmarked subjects'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _resolved.isEmpty
+              ? const Center(child: Text('No bookmarks yet'))
+              : ListView.separated(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: _resolved.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, i) {
+                    final r = _resolved[i];
+                    return Card(
+                      child: ListTile(
+                        title: Text(r['title'] ?? ''),
+                        subtitle: Text(r['path'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () => _removeBookmark(r['path'] as String),
+                        ),
+                        onTap: () => _openSubject(r),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

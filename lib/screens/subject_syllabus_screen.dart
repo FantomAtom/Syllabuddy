@@ -2,8 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart'; // Clipboard
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:syllabuddy/screens/profile_screen.dart'; // BookmarksScreen
+import 'package:syllabuddy/screens/subject_syllabus_screen.dart' as self; // not used but name consistency
 
-class SubjectSyllabusScreen extends StatelessWidget {
+class SubjectSyllabusScreen extends StatefulWidget {
   final String courseLevel;
   final String department;
   final String year;
@@ -21,14 +24,215 @@ class SubjectSyllabusScreen extends StatelessWidget {
     this.subjectName,
   }) : super(key: key);
 
+  @override
+  State<SubjectSyllabusScreen> createState() => _SubjectSyllabusScreenState();
+}
+
+class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
+    with SingleTickerProviderStateMixin {
+  bool _loadingBookmark = true;
+  bool _bookmarked = false;
+  final _db = FirebaseFirestore.instance;
+
+  // scale animation controller
+  late AnimationController _animCtrl;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+    _scaleAnim = Tween<double>(begin: 1.0, end: 1.25).animate(
+      CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutBack),
+    );
+
+    _loadBookmarkState();
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
+  String get _subjectDocPath {
+    return _db
+        .collection('degree-level')
+        .doc(widget.courseLevel)
+        .collection('department')
+        .doc(widget.department)
+        .collection('year')
+        .doc(widget.year)
+        .collection('semester')
+        .doc(widget.semester)
+        .collection('subjects')
+        .doc(widget.subjectId)
+        .path;
+  }
+
+  DocumentReference<Map<String, dynamic>> get _subjectDocRef {
+    return _db
+        .collection('degree-level')
+        .doc(widget.courseLevel)
+        .collection('department')
+        .doc(widget.department)
+        .collection('year')
+        .doc(widget.year)
+        .collection('semester')
+        .doc(widget.semester)
+        .collection('subjects')
+        .doc(widget.subjectId);
+  }
+
+  Future<void> _loadBookmarkState() async {
+    setState(() => _loadingBookmark = true);
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _bookmarked = false;
+        _loadingBookmark = false;
+      });
+      return;
+    }
+
+    try {
+      final path = _subjectDocPath;
+
+      // Prefer users doc
+      final userRef = _db.collection('users').doc(user.uid);
+      final userSnap = await userRef.get();
+      if (userSnap.exists) {
+        final List<dynamic>? b = userSnap.data()?['bookmarks'] as List<dynamic>?;
+        setState(() {
+          _bookmarked = b?.contains(path) == true;
+          _loadingBookmark = false;
+        });
+        return;
+      }
+
+      // fallback to staff_emails
+      final staffRef = _db.collection('staff_emails').doc(user.uid);
+      final staffSnap = await staffRef.get();
+      if (staffSnap.exists) {
+        final List<dynamic>? b = staffSnap.data()?['bookmarks'] as List<dynamic>?;
+        setState(() {
+          _bookmarked = b?.contains(path) == true;
+          _loadingBookmark = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _bookmarked = false;
+        _loadingBookmark = false;
+      });
+    } catch (e) {
+      debugPrint('Failed to load bookmark state: $e');
+      setState(() {
+        _bookmarked = false;
+        _loadingBookmark = false;
+      });
+    }
+  }
+
+  Future<void> _toggleBookmark() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sign in to bookmark subjects.')));
+      return;
+    }
+
+    setState(() => _loadingBookmark = true);
+
+    final subjectPath = _subjectDocPath;
+    final userRef = _db.collection('users').doc(user.uid);
+    final staffRef = _db.collection('staff_emails').doc(user.uid);
+
+    try {
+      final userSnap = await userRef.get();
+      if (userSnap.exists) {
+        if (_bookmarked) {
+          await userRef.update({'bookmarks': FieldValue.arrayRemove([subjectPath])});
+        } else {
+          await userRef.update({'bookmarks': FieldValue.arrayUnion([subjectPath])});
+        }
+        _playAnim();
+        setState(() {
+          _bookmarked = !_bookmarked;
+          _loadingBookmark = false;
+        });
+        _showBookmarkToast(_bookmarked);
+        return;
+      }
+
+      final staffSnap = await staffRef.get();
+      if (staffSnap.exists) {
+        // Note: Firestore rules must allow staff updates to include bookmarks (see rules below)
+        if (_bookmarked) {
+          await staffRef.update({'bookmarks': FieldValue.arrayRemove([subjectPath])});
+        } else {
+          await staffRef.update({'bookmarks': FieldValue.arrayUnion([subjectPath])});
+        }
+        _playAnim();
+        setState(() {
+          _bookmarked = !_bookmarked;
+          _loadingBookmark = false;
+        });
+        _showBookmarkToast(_bookmarked);
+        return;
+      }
+
+      // No profile doc exists — create a minimal users doc with bookmarks
+      await userRef.set({
+        'createdAt': FieldValue.serverTimestamp(),
+        'email': user.email,
+        'bookmarks': [_subjectDocPath],
+      }, SetOptions(merge: true));
+
+      _playAnim();
+      setState(() {
+        _bookmarked = true;
+        _loadingBookmark = false;
+      });
+      _showBookmarkToast(true);
+    } on FirebaseException catch (e) {
+      setState(() => _loadingBookmark = false);
+      debugPrint('Bookmark update failed: $e');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update bookmark: ${e.message}')));
+    } catch (e) {
+      setState(() => _loadingBookmark = false);
+      debugPrint('Bookmark error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('An error occurred while updating bookmark')));
+    }
+  }
+
+  void _playAnim() {
+    _animCtrl.forward().then((_) => _animCtrl.reverse());
+  }
+
+  void _showBookmarkToast(bool added) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(added ? 'Bookmarked' : 'Removed bookmark'),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'View',
+          onPressed: () {
+            // navigate to Bookmarks screen from ProfileScreen file
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const BookmarksScreen()));
+          },
+        ),
+      ),
+    );
+  }
+
   String _buildUnitTitle(String docId, Map<String, dynamic>? data) {
-    final unitField = data != null && data['unit'] is String
-        ? (data['unit'] as String).trim()
-        : '';
+    final unitField = data != null && data['unit'] is String ? (data['unit'] as String).trim() : '';
     final hours = (data != null && data['hours'] != null) ? data['hours'].toString().trim() : '';
 
     if (unitField.isNotEmpty) {
-      // If the unit field already mentions hours, don't append again
       final lower = unitField.toLowerCase();
       if (hours.isNotEmpty && !lower.contains('hr') && !lower.contains('hrs')) {
         return '$unitField ($hours Hrs)';
@@ -36,7 +240,6 @@ class SubjectSyllabusScreen extends StatelessWidget {
       return unitField;
     }
 
-    // Fallback: use docId (common to have docs like "1", "2", ...)
     final idNumeric = int.tryParse(docId);
     final idLabel = idNumeric != null ? 'Unit $docId' : docId;
     if (hours.isNotEmpty) return '$idLabel ($hours Hrs)';
@@ -47,24 +250,13 @@ class SubjectSyllabusScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
 
-    final subjectDocRef = FirebaseFirestore.instance
-        .collection('degree-level')
-        .doc(courseLevel)
-        .collection('department')
-        .doc(department)
-        .collection('year')
-        .doc(year)
-        .collection('semester')
-        .doc(semester)
-        .collection('subjects')
-        .doc(subjectId);
-
+    final subjectDocRef = _subjectDocRef;
     final unitsCollection = subjectDocRef.collection('units');
 
     return Scaffold(
       body: Column(
         children: [
-          // Top curved banner with back button
+          // Top curved banner with back button and bookmark
           ClipRRect(
             borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(40),
@@ -85,9 +277,9 @@ class SubjectSyllabusScreen extends StatelessWidget {
                   ),
                   Center(
                     child: Text(
-                      subjectName != null && subjectName!.trim().isNotEmpty
-                          ? subjectName!
-                          : subjectId,
+                      widget.subjectName != null && widget.subjectName!.trim().isNotEmpty
+                          ? widget.subjectName!
+                          : widget.subjectId,
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -95,12 +287,38 @@ class SubjectSyllabusScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+
+                  // Bookmark icon on the right with animation
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 4.0),
+                      child: _loadingBookmark
+                          ? const SizedBox(
+                              height: 44,
+                              width: 44,
+                              child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))),
+                            )
+                          : ScaleTransition(
+                              scale: _scaleAnim,
+                              child: IconButton(
+                                icon: Icon(
+                                  _bookmarked ? Icons.bookmark : Icons.bookmark_outline,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                                tooltip: _bookmarked ? 'Remove bookmark' : 'Bookmark subject',
+                                onPressed: _toggleBookmark,
+                              ),
+                            ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
 
-          // Units list: validate subject exists, then stream units
+          // Units list: validate subject and stream units
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -135,7 +353,7 @@ class SubjectSyllabusScreen extends StatelessWidget {
                   if (sdoc == null || !sdoc.exists) {
                     return Center(
                       child: Text(
-                        'No subject found at:\n/degree-level/$courseLevel/department/$department/year/$year/semester/$semester/subjects/$subjectId',
+                        'No subject found at:\n${subjectDocRef.path}',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
                       ),
