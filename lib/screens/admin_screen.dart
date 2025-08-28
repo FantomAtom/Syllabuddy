@@ -140,7 +140,7 @@ class _AdminHomeState extends State<AdminHome> {
           child: Row(
             children: [
               const Expanded(child: Text('Manage degree levels (e.g. UG, PG)', style: TextStyle(fontWeight: FontWeight.bold))),
-              ElevatedButton.icon(onPressed: _addDegree, icon: const Icon(Icons.add), label: const Text('Add')),
+              // ElevatedButton.icon(onPressed: _addDegree, icon: const Icon(Icons.add), label: const Text('Add')), commented out the add button
             ],
           ),
         ),
