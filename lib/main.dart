@@ -1,9 +1,12 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'theme.dart';
 import 'screens/landingScreen.dart';
 import 'screens/main_shell.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +23,24 @@ class MyApp extends StatelessWidget {
       title: 'Syllabuddy',
       debugShowCheckedModeBanner: false,
       theme: appTheme,
+      // use builder so we can set the status bar style based on the theme dynamically
+      builder: (context, child) {
+        final Widget page = child ?? const SizedBox.shrink();
+
+        // derive overlay style from theme primary color
+        final primary = Theme.of(context).primaryColor;
+        final useLightIcons = primary.computeLuminance() < 0.5;
+        final overlayStyle = SystemUiOverlayStyle(
+          statusBarColor: primary,
+          statusBarIconBrightness: useLightIcons ? Brightness.light : Brightness.dark,
+          statusBarBrightness: useLightIcons ? Brightness.dark : Brightness.light,
+        );
+
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: overlayStyle,
+          child: page,
+        );
+      },
       home: const RootDecider(),
     );
   }

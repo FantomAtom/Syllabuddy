@@ -7,8 +7,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:syllabuddy/services/user_service.dart';
 import 'package:syllabuddy/screens/subject_syllabus_screen.dart';
 
+/// ProfileScreen now accepts an optional [onClose] callback that, when provided,
+/// will be called when the user presses the top-left back arrow and there's no
+/// inner navigator history to pop. MainShell provides this callback so the
+/// Profile tab can be closed and the previous tab selected without recreating
+/// MainShell.
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  final VoidCallback? onClose;
+  const ProfileScreen({Key? key, this.onClose}) : super(key: key);
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -82,7 +88,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _confirmAndDelete(BuildContext context) async {
-    // (same deletion flow you already implemented; kept here for completeness)
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -198,6 +203,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _isEditing = false;
   }
 
+  Future<void> _handleBackPressed() async {
+    // Try to pop inner navigation first (this returns true if popped)
+    final popped = await Navigator.maybePop(context);
+    if (popped) return;
+
+    // Nothing to pop in this navigator - ask parent shell to switch tabs.
+    if (widget.onClose != null) {
+      widget.onClose!();
+      return;
+    }
+
+    // fallback: pop until first route (safe fallback)
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
@@ -215,7 +235,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding: const EdgeInsets.only(top: 80, bottom: 40),
                     child: Stack(
                       children: [
-                        Positioned(left: 4, top: 0, bottom: 0, child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.of(context).pop())),
+                        Positioned(
+                          left: 4,
+                          top: 0,
+                          bottom: 0,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back, color: Color.fromARGB(255, 197, 197, 197)),
+                            onPressed: _handleBackPressed,
+                          ),
+                        ),
                         Align(alignment: Alignment.center, child: Text('Profile', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)))),
                       ],
                     ),

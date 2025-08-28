@@ -48,7 +48,7 @@ class DepartmentScreen extends StatelessWidget {
                     top: 0,
                     bottom: 0,
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ),
