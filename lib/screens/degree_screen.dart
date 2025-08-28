@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // ✅ added for user name
 import 'package:syllabuddy/screens/landingScreen.dart';
+import 'package:syllabuddy/services/user_service.dart';
 import 'package:syllabuddy/theme.dart';
 import 'department_screen.dart';
 import 'subject_syllabus_screen.dart';
@@ -58,9 +59,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
         return;
       }
 
-      final doc =
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final data = doc.data();
+      final data = await UserService.getCurrentUserData();
       final last = data?['lastName'] ?? '';
       setState(() {
         _userName = "$last".trim().isEmpty ? "User" : "$last".trim();

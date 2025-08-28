@@ -1,9 +1,10 @@
 // lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // ✅ added
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syllabuddy/screens/landingScreen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:syllabuddy/services/user_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -26,29 +27,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
       _logout(context);
       return;
     }
 
     try {
-      final doc =
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final data = doc.data();
+      final data = await UserService.getCurrentUserData();
+      final first = data?['firstName'] ?? '';
+      final last = data?['lastName'] ?? '';
+      final ts = data?['createdAt'];
 
       setState(() {
-        _user = user;
-        _email = user.email;
-        if (data != null) {
-          final firstName = data['firstName'] ?? '';
-          final lastName = data['lastName'] ?? '';
-          _name = "$firstName $lastName".trim();
-        } else {
-          _name = 'Unknown';
-        }
+        _user = currentUser;
+        _email = currentUser.email;
+        _name = "$first $last".trim().isEmpty ? 'Unknown' : "$first $last".trim();
 
-        final ts = data?['createdAt'];
         if (ts != null && ts is Timestamp) {
           final dt = ts.toDate();
           _memberSince = "${dt.day}/${dt.month}/${dt.year}";
@@ -61,8 +56,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       debugPrint('Failed to fetch profile: $e');
       setState(() {
-        _user = user;
-        _email = user.email;
+        _user = currentUser;
+        _email = currentUser.email;
         _name = 'Unknown';
         _memberSince = "Unknown";
         _loading = false;
@@ -73,7 +68,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
 
-    // ✅ Clear login state
+    // Clear login state
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('isLoggedIn');
 
@@ -93,48 +88,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: const Text(
             'This will permanently delete your account. This action cannot be undone.'),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete',
-                  style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
 
     if (confirmed == true) {
       try {
-        final uid = _user?.uid;
-        if (uid != null) {
-          await FirebaseFirestore.instance.collection('users').doc(uid).delete();
-        }
-        await _user?.delete();
+        await UserService.deleteAccount();
 
-        // ✅ Clear login state
+        // Clear login state
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('isLoggedIn');
 
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Account deleted successfully.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account deleted successfully.')));
         _logout(context);
       } on FirebaseAuthException catch (e) {
         if (!mounted) return;
         if (e.code == 'requires-recent-login') {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text(
-                  'Please log in again to delete your account (security requirement).')));
+              content: Text('Please log in again to delete your account (security requirement).')));
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to delete account: ${e.message}')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete account: ${e.message}')));
         }
       } catch (e) {
         debugPrint('Delete account error: $e');
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Unexpected error deleting account.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unexpected error deleting account.')));
       }
     }
   }
@@ -161,53 +143,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: firstNameController,
-                decoration: const InputDecoration(
-                  labelText: "First Name",
-                  border: OutlineInputBorder(),
-                ),
-              ),
+              TextField(controller: firstNameController, decoration: const InputDecoration(labelText: "First Name", border: OutlineInputBorder())),
               const SizedBox(height: 12),
-              TextField(
-                controller: lastNameController,
-                decoration: const InputDecoration(
-                  labelText: "Last Name",
-                  border: OutlineInputBorder(),
-                ),
-              ),
+              TextField(controller: lastNameController, decoration: const InputDecoration(labelText: "Last Name", border: OutlineInputBorder())),
             ],
           ),
           actions: [
-            TextButton(
-              child: const Text("Cancel"),
-              onPressed: () => Navigator.pop(context),
-            ),
+            TextButton(child: const Text("Cancel"), onPressed: () => Navigator.pop(context)),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                foregroundColor: Colors.white,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor, foregroundColor: Colors.white),
               child: const Text("Save"),
               onPressed: () async {
                 try {
-                  await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(_user!.uid)
-                      .update({
-                    'firstName': firstNameController.text.trim(),
-                    'lastName': lastNameController.text.trim(),
-                  });
+                  await UserService.updateName(firstNameController.text.trim(), lastNameController.text.trim());
                   Navigator.pop(context);
-                  _fetchProfile();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Profile updated successfully')),
-                  );
+                  await _fetchProfile();
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully')));
+                } on FirebaseException catch (e) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update profile: ${e.message}')));
                 } catch (e) {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to update profile: $e')),
-                  );
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update profile: $e')));
                 }
               },
             ),
@@ -229,32 +186,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           : Column(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(40),
-                      bottomRight: Radius.circular(40)),
+                  borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
                   child: Container(
                     width: double.infinity,
                     color: primary,
                     padding: const EdgeInsets.only(top: 80, bottom: 40),
                     child: Stack(
                       children: [
-                        Positioned(
-                          left: 4,
-                          top: 0,
-                          bottom: 0,
-                          child: IconButton(
-                            icon: const Icon(Icons.arrow_back, color: Colors.white),
-                            onPressed: () => Navigator.of(context).pop(),
-                          ),
-                        ),
-                        Align(
-                          alignment: Alignment.center,
-                          child: Text('Profile',
-                              style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white.withOpacity(0.95))),
-                        ),
+                        Positioned(left: 4, top: 0, bottom: 0, child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.of(context).pop())),
+                        Align(alignment: Alignment.center, child: Text('Profile', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)))),
                       ],
                     ),
                   ),
@@ -264,30 +204,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
                     children: [
-                      Text(_name ?? '',
-                          style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: primary)),
+                      Text(_name ?? '', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primary)),
                       const SizedBox(height: 6),
-                      Text(_email ?? '',
-                          style:
-                              TextStyle(fontSize: 14, color: Colors.grey[700])),
+                      Text(_email ?? '', style: TextStyle(fontSize: 14, color: Colors.grey[700])),
                       const SizedBox(height: 20),
                       Card(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
                           child: Row(
                             children: [
                               const Icon(Icons.school),
                               const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                    'Member since $_memberSince\nSyllabuddy user',
-                                    style: TextStyle(color: Colors.grey[800])),
-                              ),
+                              Expanded(child: Text('Member since $_memberSince\nSyllabuddy user', style: TextStyle(color: Colors.grey[800]))),
                             ],
                           ),
                         ),
@@ -298,13 +227,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.edit),
                           label: const Text('Edit Profile'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blueGrey.shade600,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
                           onPressed: () => _editProfile(context),
                         ),
                       ),
@@ -314,13 +237,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.dark_mode),
                           label: const Text('Toggle Dark/Light Mode'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange.shade600,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
                           onPressed: () {
                             // TODO: add dark mode toggle
                           },
@@ -332,13 +249,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.logout),
                           label: const Text('Logout'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
+                          style: ElevatedButton.styleFrom(backgroundColor: primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
                           onPressed: () => _logout(context),
                         ),
                       ),
@@ -348,13 +259,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.delete_forever),
                           label: const Text('Delete Account'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red.shade600,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
                           onPressed: () => _confirmAndDelete(context),
                         ),
                       ),

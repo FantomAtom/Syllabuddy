@@ -1,3 +1,4 @@
+// lib/screens/main_shell.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,8 +16,15 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _index = 0;
-  bool _isStaffRole = false;
-  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _userSub;
+
+  /// showAdminTab => whether we show the Admin tab at all (exists in staff_emails
+  /// or users role == 'staff'). AdminConsole will decide whether the user can edit.
+  bool _showAdminTab = false;
+
+  /// whether the staff request is verified (useful for debug or future use)
+  bool _isVerified = false;
+
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _staffSub;
   late Future<void> _roleLoaded;
 
   @override
@@ -29,25 +37,52 @@ class _MainShellState extends State<MainShell> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // fetch initial role from Firestore
-    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-    final role = doc.data()?['role']?.toString() ?? '';
-    _isStaffRole = role == 'staff';
+    final uid = user.uid;
+    final db = FirebaseFirestore.instance;
 
-    // subscribe to live updates for role changes
-    _userSub = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .snapshots()
-        .listen((snap) {
-      final role = snap.data()?['role']?.toString() ?? '';
-      setState(() => _isStaffRole = role == 'staff');
+    // Try staff_emails doc first
+    try {
+      final staffDoc = await db.collection('staff_emails').doc(uid).get();
+      if (staffDoc.exists) {
+        final status = staffDoc.data()?['status']?.toString() ?? 'unverified';
+        _showAdminTab = true;
+        _isVerified = status.toLowerCase() == 'verified';
+      } else {
+        // fallback: check 'users' doc (legacy or alternate)
+        final userDoc = await db.collection('users').doc(uid).get();
+        if (userDoc.exists) {
+          final role = userDoc.data()?['role']?.toString() ?? '';
+          _showAdminTab = role.toLowerCase() == 'staff';
+          _isVerified = _showAdminTab; // if someone is marked 'staff' in users, treat as allowed.
+        } else {
+          _showAdminTab = false;
+          _isVerified = false;
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed initial role check: $e');
+      _showAdminTab = false;
+      _isVerified = false;
+    }
+
+    // Subscribe to staff_emails doc so verification updates reflect live
+    // (if doc does not exist this subscription will still get an initial non-existence snapshot)
+    _staffSub?.cancel();
+    _staffSub = db.collection('staff_emails').doc(uid).snapshots().listen((snap) {
+      final exists = snap.exists;
+      final status = snap.data()?['status']?.toString() ?? 'unverified';
+      setState(() {
+        _showAdminTab = exists || _showAdminTab; // once true via users doc, keep it true
+        _isVerified = (status.toLowerCase() == 'verified');
+      });
+    }, onError: (err) {
+      debugPrint('staff_emails subscription error: $err');
     });
   }
 
   @override
   void dispose() {
-    _userSub?.cancel();
+    _staffSub?.cancel();
     super.dispose();
   }
 
@@ -60,11 +95,11 @@ class _MainShellState extends State<MainShell> {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
-        final pages = _isStaffRole
+        final pages = _showAdminTab
             ? [const CoursesScreen(), const AdminConsole(), const ProfileScreen()]
             : [const CoursesScreen(), const ProfileScreen()];
 
-        final bottomItems = _isStaffRole
+        final bottomItems = _showAdminTab
             ? [
                 const BottomNavigationBarItem(icon: Icon(Icons.school), label: 'Syllabus'),
                 const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings), label: 'Admin'),
@@ -75,7 +110,7 @@ class _MainShellState extends State<MainShell> {
                 const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
               ];
 
-        final safeIndex = (_isStaffRole ? _index : (_index > 1 ? 1 : _index));
+        final safeIndex = (_showAdminTab ? _index : (_index > 1 ? 1 : _index));
 
         return Scaffold(
           body: IndexedStack(index: safeIndex, children: pages),

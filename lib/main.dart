@@ -25,7 +25,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// RootDecider shows the appropriate initial screen depending on Firebase auth state
+/// Shows LandingScreen if logged out, MainShell if logged in
 class RootDecider extends StatelessWidget {
   const RootDecider({super.key});
 
@@ -38,11 +38,7 @@ class RootDecider extends StatelessWidget {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         final user = snap.data;
-        if (user == null) {
-          return const LandingScreen();
-        } else {
-          return const MainShell();
-        }
+        return user == null ? const LandingScreen() : const MainShell();
       },
     );
   }

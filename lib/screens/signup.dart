@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:syllabuddy/screens/main_shell.dart';
 import 'login.dart';
-import 'degree_screen.dart';
+import 'package:syllabuddy/services/user_service.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({Key? key}) : super(key: key);
@@ -74,9 +74,7 @@ class _SignUpPageState extends State<SignUpPage> {
     final lastName = _lastNameCtrl.text.trim();
     final studentId = _studentIdCtrl.text.trim().isEmpty ? null : _studentIdCtrl.text.trim();
 
-    // Now we allow the user to pick 'staff' at signup, but admin access is gated
-    // by staff_emails/{uid}.status === 'verified'
-    final roleToWrite = _role; // 'student' or 'staff'
+    final roleToWrite = _role; // student or staff
 
     try {
       final userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -86,34 +84,29 @@ class _SignUpPageState extends State<SignUpPage> {
 
       final user = userCred.user ?? FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('Authentication did not return a user.');
-
       final uid = user.uid;
 
-      // Write profile to Firestore
-      final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
-      await userRef.set({
-        'firstName': firstName,
-        'lastName': lastName,
-        'email': email,
-        'studentId': studentId,
-        'role': roleToWrite,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      // If they selected staff, create a staff_emails entry for verification workflow
-      if (roleToWrite == 'staff') {
-        final staffRef = FirebaseFirestore.instance.collection('staff_emails').doc(uid);
-        await staffRef.set({
+      if (roleToWrite == 'student') {
+        // Students -> users collection via service
+        await UserService.createStudent(uid, {
+          'firstName': firstName,
+          'lastName': lastName,
           'email': email,
-          'status': 'unverified', // admin will flip to 'verified'
-          'createdAt': FieldValue.serverTimestamp(),
+          'studentId': studentId,
+        });
+      } else {
+        // Staff -> staff_emails collection via service
+        await UserService.createStaff(uid, {
+          'firstName': firstName,
+          'lastName': lastName,
+          'email': email,
+          'status': 'unverified',
         });
       }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Account created: ${user.email}')));
 
-      // 🔥 fix: navigate into RootDecider (which decides MainShell vs Landing)
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const MainShell()),
@@ -149,19 +142,27 @@ class _SignUpPageState extends State<SignUpPage> {
       body: Column(
         children: [
           ClipRRect(
-            borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(40),
+              bottomRight: Radius.circular(40),
+            ),
             child: Container(
               width: double.infinity,
               color: primary,
               padding: const EdgeInsets.only(top: 80, bottom: 40),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
                   Image.asset('assets/icon.png', height: 100),
                   const SizedBox(height: 16),
-                  Text('Create an Account!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9))),
+                  Text(
+                    'Create an Account!',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9)),
+                  ),
                   const SizedBox(height: 20),
-                  Text('Sign up', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9))),
+                  Text(
+                    'Sign up',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9)),
+                  ),
                 ],
               ),
             ),
@@ -187,7 +188,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         Expanded(
                           child: TextFormField(
                             controller: _firstNameCtrl,
-                            decoration: InputDecoration(hintText: 'First Name', filled: true, fillColor: Colors.grey[100], contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                            decoration: InputDecoration(hintText: 'First Name', filled: true, fillColor: Colors.grey[100], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
                             validator: (v) => (v == null || v.isEmpty) ? 'Enter first name' : null,
                           ),
                         ),
@@ -195,7 +196,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         Expanded(
                           child: TextFormField(
                             controller: _lastNameCtrl,
-                            decoration: InputDecoration(hintText: 'Last Name', filled: true, fillColor: Colors.grey[100], contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                            decoration: InputDecoration(hintText: 'Last Name', filled: true, fillColor: Colors.grey[100], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
                             validator: (v) => (v == null || v.isEmpty) ? 'Enter last name' : null,
                           ),
                         ),
@@ -206,10 +207,12 @@ class _SignUpPageState extends State<SignUpPage> {
                     TextFormField(
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(hintText: 'Email', filled: true, fillColor: Colors.grey[100], prefixIcon: Icon(Icons.email, color: primary), contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                      decoration: InputDecoration(hintText: 'Email', filled: true, fillColor: Colors.grey[100], prefixIcon: Icon(Icons.email, color: primary), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Enter email';
-                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) return 'Enter a valid email';
+                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
+                          return 'Enter a valid email';
+                        }
                         return null;
                       },
                     ),
@@ -218,7 +221,7 @@ class _SignUpPageState extends State<SignUpPage> {
                     TextFormField(
                       controller: _passwordCtrl,
                       obscureText: _obscurePassword,
-                      decoration: InputDecoration(hintText: 'Password (min 6 chars)', filled: true, fillColor: Colors.grey[100], prefixIcon: Icon(Icons.lock, color: primary), suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _obscurePassword = !_obscurePassword)), contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                      decoration: InputDecoration(hintText: 'Password (min 6 chars)', filled: true, fillColor: Colors.grey[100], prefixIcon: Icon(Icons.lock, color: primary), suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _obscurePassword = !_obscurePassword)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Enter password';
                         if (v.length < 6) return 'Password must be at least 6 characters';
@@ -229,18 +232,18 @@ class _SignUpPageState extends State<SignUpPage> {
 
                     TextFormField(
                       controller: _studentIdCtrl,
-                      decoration: InputDecoration(hintText: 'Student ID (optional)', filled: true, fillColor: Colors.grey[100], prefixIcon: Icon(Icons.perm_identity, color: primary), contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                      decoration: InputDecoration(hintText: 'Student ID (optional)', filled: true, fillColor: Colors.grey[100], prefixIcon: Icon(Icons.perm_identity, color: primary), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
                     ),
                     const SizedBox(height: 16),
 
                     DropdownButtonFormField<String>(
                       value: _role,
-                      decoration: InputDecoration(filled: true, fillColor: Colors.grey[100], contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
                       items: const [
                         DropdownMenuItem(value: 'student', child: Text('Student')),
                         DropdownMenuItem(value: 'staff', child: Text('Staff')),
                       ],
                       onChanged: (v) => setState(() => _role = v ?? 'student'),
+                      decoration: InputDecoration(filled: true, fillColor: Colors.grey[100], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
                     ),
                     const SizedBox(height: 32),
 
