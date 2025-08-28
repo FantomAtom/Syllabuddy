@@ -187,32 +187,41 @@ class _AdminUnitListState extends State<AdminUnitList> {
     final data = doc.data() ?? {};
     final nameCtrl = TextEditingController(text: data['displayName'] ?? 'Unit ${doc.id}');
     final hoursCtrl = TextEditingController(text: data['hours']?.toString() ?? '10');
-    final descCtrl = TextEditingController(text: data['description'] ?? '');
-    
+
+    // prefill from either 'content' (preferred) or 'description'
+    final existingDesc = (data['content']?.toString() ?? data['description']?.toString() ?? '');
+    final descCtrl = TextEditingController(text: existingDesc);
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Edit Unit'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(labelText: 'Unit Name'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: hoursCtrl,
-              decoration: const InputDecoration(labelText: 'Hours'),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descCtrl,
-              decoration: const InputDecoration(labelText: 'Description'),
-              maxLines: 3,
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Unit Name'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: hoursCtrl,
+                decoration: const InputDecoration(labelText: 'Hours'),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+
+              // <-- larger editable area for description
+              TextField(
+                controller: descCtrl,
+                decoration: const InputDecoration(labelText: 'Description'),
+                keyboardType: TextInputType.multiline,
+                minLines: 6, // shows a larger box by default
+                maxLines: 12,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -226,10 +235,12 @@ class _AdminUnitListState extends State<AdminUnitList> {
 
     if (ok == true) {
       try {
+        // Update both 'description' and 'content' to keep documents consistent
         await doc.reference.update({
           'displayName': nameCtrl.text.trim(),
           'hours': hoursCtrl.text.trim(),
           'description': descCtrl.text.trim(),
+          'content': descCtrl.text.trim(),
         });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unit updated')));
       } catch (e) {
@@ -325,12 +336,3 @@ class AdminUnitCard extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-
