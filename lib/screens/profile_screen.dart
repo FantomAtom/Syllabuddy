@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:syllabuddy/screens/landingScreen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:syllabuddy/screens/landingScreen.dart';
 import 'package:syllabuddy/services/user_service.dart';
 import 'package:syllabuddy/screens/subject_syllabus_screen.dart';
 
@@ -31,7 +31,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _fetchProfile() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      _logout(context);
+      // If user is already signed out, just stop loading and return.
+      // RootDecider (AuthGate) will switch the root widget.
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _user = null;
+          _email = null;
+          _name = null;
+          _memberSince = null;
+        });
+      }
       return;
     }
 
@@ -41,6 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final last = data?['lastName'] ?? '';
       final ts = data?['createdAt'];
 
+      if (!mounted) return;
       setState(() {
         _user = currentUser;
         _email = currentUser.email;
@@ -57,6 +68,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     } catch (e) {
       debugPrint('Failed to fetch profile: $e');
+      if (!mounted) return;
       setState(() {
         _user = currentUser;
         _email = currentUser?.email;
@@ -67,19 +79,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // Sign out and clear saved login flag. Do NOT navigate here — RootDecider will react.
   Future<void> _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
+      try {
+        // Clear any local login flags first
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('isLoggedIn');
 
-    // Clear login state
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('isLoggedIn');
+        // Sign out from Firebase
+        await FirebaseAuth.instance.signOut();
 
-    if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LandingScreen()),
-      (route) => false,
-    );
+        if (!mounted) return;
+
+        // Force the root navigator to show LandingScreen and remove all routes.
+        // Use rootNavigator: true to ensure the global navigator is targeted.
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LandingScreen()),
+          (route) => false,
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Signed out')));
+      } catch (e) {
+        debugPrint('Logout failed: $e');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sign out failed: $e')));
+      }
   }
 
   Future<void> _confirmAndDelete(BuildContext context) async {
@@ -99,7 +123,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (confirmed != true) return;
 
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return _logout(context);
+    if (user == null) {
+      // If there's no signed-in user, just return — nothing to delete client-side.
+      return;
+    }
 
     try {
       await UserService.deleteAccount();
@@ -107,9 +134,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('isLoggedIn');
 
+      // After deleting the account on backend, sign out locally.
+      await FirebaseAuth.instance.signOut();
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account deleted successfully.')));
-      _logout(context);
+      // RootDecider will swap to LandingScreen because authStateChanges() emits null.
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       if (e.code == 'requires-recent-login') {
@@ -180,12 +210,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   await UserService.updateName(firstNameController.text.trim(), lastNameController.text.trim());
                   Navigator.pop(context);
                   await _fetchProfile();
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully')));
                 } on FirebaseException catch (e) {
                   Navigator.pop(context);
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update profile: ${e.message}')));
                 } catch (e) {
                   Navigator.pop(context);
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update profile: $e')));
                 }
               },
@@ -236,7 +269,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         const Icon(Icons.school),
                         const SizedBox(width: 12),
-                        Expanded(child: Text('Member since $_memberSince\nSyllabuddy user', style: TextStyle(color: Colors.grey[800]))),
+                        Expanded(child: Text('Member since ${_memberSince ?? "Unknown"}\nSyllabuddy user', style: TextStyle(color: Colors.grey[800]))),
                       ],
                     ),
                   ),
@@ -472,9 +505,11 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
         }
       }
       await _loadBookmarks();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Removed from bookmarks')));
     } catch (e) {
       debugPrint('Failed to remove bookmark: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to remove bookmark: $e')));
     }
   }
