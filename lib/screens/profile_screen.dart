@@ -223,9 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final primary = Theme.of(context).primaryColor;
 
     return Scaffold(
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
+            body: Column(
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
@@ -233,19 +231,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     width: double.infinity,
                     color: primary,
                     padding: const EdgeInsets.only(top: 80, bottom: 40),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          left: 4,
-                          top: 0,
-                          bottom: 0,
-                          child: IconButton(
-                            icon: const Icon(Icons.arrow_back, color: Color.fromARGB(255, 197, 197, 197)),
-                            onPressed: _handleBackPressed,
-                          ),
-                        ),
-                        Align(alignment: Alignment.center, child: Text('Profile', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)))),
-                      ],
+                    child: Center(
+                      child: Text(
+                        'Profile',
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
+                      ),
                     ),
                   ),
                 ),

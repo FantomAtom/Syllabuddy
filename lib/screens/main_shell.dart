@@ -162,8 +162,8 @@ class _MainShellState extends State<MainShell> {
             ? [
                 const CoursesScreen(),
                 const ExamsScreen(), 
-                const AdminConsole(),
                 ProfileScreen(onClose: _switchToLastTab),
+                const AdminConsole(),
               ]
             : [
                 const CoursesScreen(),
@@ -176,8 +176,8 @@ class _MainShellState extends State<MainShell> {
             ? [
                 const BottomNavigationBarItem(icon: Icon(Icons.school), label: 'Syllabus'),
                 const BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Exams'),
-                const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings), label: 'Admin'),
                 const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+                const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings), label: 'Admin'),
               ]
             : [
                 const BottomNavigationBarItem(icon: Icon(Icons.school), label: 'Syllabus'),
