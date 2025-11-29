@@ -1,6 +1,7 @@
 // lib/screens/exams_screen.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'hall_allotments_demo.dart'; // <-- new demo screen (same folder)
 
 class ExamsScreen extends StatelessWidget {
   const ExamsScreen({Key? key}) : super(key: key);
@@ -13,7 +14,6 @@ class ExamsScreen extends StatelessWidget {
       if (maybe is int) return DateTime.fromMillisecondsSinceEpoch(maybe);
       if (maybe is String) return DateTime.parse(maybe);
       if (maybe is Map) {
-        // Support both "_seconds"/"_nanoseconds" and "seconds"/"nanoseconds"
         final secondsKey = maybe.containsKey('_seconds') ? '_seconds' : (maybe.containsKey('seconds') ? 'seconds' : null);
         final nanosKey = maybe.containsKey('_nanoseconds') ? '_nanoseconds' : (maybe.containsKey('nanoseconds') ? 'nanoseconds' : null);
         if (secondsKey != null) {
@@ -24,9 +24,7 @@ class ExamsScreen extends StatelessWidget {
           return DateTime.fromMillisecondsSinceEpoch(secondsInt * 1000 + (nanosInt ~/ 1000000));
         }
       }
-    } catch (_) {
-      // ignore parse errors
-    }
+    } catch (_) {}
     return null;
   }
 
@@ -196,6 +194,26 @@ class ExamsScreen extends StatelessWidget {
                 final content = <Widget>[];
                 content.add(const SizedBox(height: 8));
 
+                // ----- Add "View Hall Allotments" demo button at top of content -----
+                content.add(Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text('Exam schedules', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: primary))),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.view_list),
+                        label: const Text('View Hall Allotments'),
+                        style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14)),
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const HallAllotmentsDemo()));
+                        },
+                      ),
+                    ],
+                  ),
+                ));
+                content.add(const SizedBox(height: 12));
+
                 if (ongoing.isNotEmpty) {
                   content.add(const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 24),
@@ -299,20 +317,6 @@ class ExamsScreen extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   children: [
                     const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Exam schedules',
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: primary),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
                     ...content,
                   ],
                 );
