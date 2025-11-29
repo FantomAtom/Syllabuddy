@@ -6,6 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'degree_screen.dart';
 import 'profile_screen.dart';
 import 'admin_screen.dart';
+import 'exams_screen.dart';
+
 
 class MainShell extends StatefulWidget {
   /// optional initialTab for cases where you want MainShell to open on a specific tab
@@ -93,7 +95,7 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _buildNavigatorKeys() {
-    final count = _showAdminTab ? 3 : 2;
+    final count = _showAdminTab ? 4 : 3;
     // If keys length differs, rebuild so each tab has its own navigator key.
     if (_navigatorKeys.length != count) {
       _navigatorKeys = List.generate(count, (_) => GlobalKey<NavigatorState>());
@@ -159,12 +161,13 @@ class _MainShellState extends State<MainShell> {
         final pages = _showAdminTab
             ? [
                 const CoursesScreen(),
+                const ExamsScreen(), 
                 const AdminConsole(),
-                // pass onClose callback to ProfileScreen
                 ProfileScreen(onClose: _switchToLastTab),
               ]
             : [
                 const CoursesScreen(),
+                const ExamsScreen(),     
                 ProfileScreen(onClose: _switchToLastTab),
               ];
 
@@ -172,13 +175,16 @@ class _MainShellState extends State<MainShell> {
         final bottomItems = _showAdminTab
             ? [
                 const BottomNavigationBarItem(icon: Icon(Icons.school), label: 'Syllabus'),
+                const BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Exams'),
                 const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings), label: 'Admin'),
                 const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
               ]
             : [
                 const BottomNavigationBarItem(icon: Icon(Icons.school), label: 'Syllabus'),
+                const BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Exams'),
                 const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
               ];
+
 
         // Safety: ensure navigator keys exist
         _buildNavigatorKeys();
@@ -207,11 +213,16 @@ class _MainShellState extends State<MainShell> {
             // The body is the stack of offstage navigators; only the active one is interactive.
             body: Stack(children: navigators),
             bottomNavigationBar: BottomNavigationBar(
-              currentIndex: _index,
-              items: bottomItems,
-              onTap: (i) => _selectTab(i),
-              selectedItemColor: Theme.of(context).primaryColor,
-            ),
+            currentIndex: _index,
+            items: bottomItems,
+            onTap: (i) => _selectTab(i),
+            type: BottomNavigationBarType.fixed,                 // stable layout for 3-4 items
+            backgroundColor: Theme.of(context).colorScheme.surface, // solid background (not transparent)
+            selectedItemColor: Theme.of(context).primaryColor,  // highlight for active tab
+            unselectedItemColor: Colors.grey[600],              // visible but muted for others
+            showUnselectedLabels: true,
+          ),
+
           ),
         );
       },
