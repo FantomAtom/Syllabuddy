@@ -17,7 +17,11 @@ class _AdminDepartmentListState extends State<AdminDepartmentList> {
   Widget build(BuildContext context) {
     final stream = _db.collection('degree-level').doc(widget.degreeId).collection('department').snapshots();
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.degreeId} Departments')),
+      appBar: AppBar(
+        title: Text('${widget.degreeId} Departments', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+        backgroundColor: Theme.of(context).primaryColor,
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateDepartmentDialog,
         child: const Icon(Icons.add),
@@ -275,6 +279,3 @@ class AdminDepartmentCard extends StatelessWidget {
     );
   }
 }
-
-
-

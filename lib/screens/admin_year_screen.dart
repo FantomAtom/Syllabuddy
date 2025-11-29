@@ -25,7 +25,11 @@ class _AdminYearListState extends State<AdminYearList> {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.departmentId} Years')),
+      appBar: AppBar(
+        title: Text('${widget.departmentId} Years', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+        backgroundColor: Theme.of(context).primaryColor,
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateYearDialog,
         child: const Icon(Icons.add),
@@ -288,5 +292,3 @@ class AdminYearCard extends StatelessWidget {
     );
   }
 }
-
-

@@ -36,7 +36,11 @@ class _AdminSubjectListState extends State<AdminSubjectList> {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: Text('Semester ${widget.semesterId} Subjects')),
+      appBar: AppBar(
+        title: Text('Semester ${widget.semesterId} Subjects', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+        backgroundColor: Theme.of(context).primaryColor,
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateSubjectDialog,
         child: const Icon(Icons.add),

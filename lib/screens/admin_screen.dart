@@ -69,6 +69,15 @@ class _AdminConsoleState extends State<AdminConsole> {
     }
   }
 
+  AppBar _primaryAppBar(BuildContext context, String title) {
+    final theme = Theme.of(context);
+    return AppBar(
+      title: Text(title, style: TextStyle(color: theme.colorScheme.onPrimary)),
+      backgroundColor: theme.primaryColor,
+      iconTheme: IconThemeData(color: theme.colorScheme.onPrimary),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -77,21 +86,22 @@ class _AdminConsoleState extends State<AdminConsole> {
 
     if (_error != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Admin Console')),
+        appBar: _primaryAppBar(context, 'Admin Console'),
         body: Center(child: Text('Error: $_error')),
       );
     }
 
     if (!_verified) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Admin Console')),
+        appBar: _primaryAppBar(context, 'Admin Console'),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.lock_outline, size: 64, color: Theme.of(context).primaryColor),
               const SizedBox(height: 16),
-              Text('Admin Access Pending', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
+              Text('Admin Access Pending',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
               const SizedBox(height: 12),
               Text(
                 'Your account (${_email ?? "unknown"}) is registered as staff but not verified yet. An administrator must verify your email to enable admin features.',
@@ -112,7 +122,7 @@ class _AdminConsoleState extends State<AdminConsole> {
 
     // Verified - show the full admin UI (AdminHome + navigation)
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin Console')),
+      appBar: _primaryAppBar(context, 'Admin Console'),
       body: const AdminHome(),
     );
   }
@@ -347,7 +357,11 @@ class _DepartmentListState extends State<DepartmentList> {
   Widget build(BuildContext context) {
     final stream = _db.collection('degree-level').doc(widget.degreeId).collection('department').snapshots();
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.degreeId} departments')),
+      appBar: AppBar(
+        title: Text('${widget.degreeId} departments', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+        backgroundColor: Theme.of(context).primaryColor,
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+      ),
       body: Column(children: [
         Padding(padding: const EdgeInsets.all(12), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           const Text('Departments', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -455,7 +469,11 @@ class _YearListState extends State<YearList> {
   Widget build(BuildContext context) {
     final stream = _db.collection('degree-level').doc(widget.degreeId).collection('department').doc(widget.departmentId).collection('year').snapshots();
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.departmentId} - years')),
+      appBar: AppBar(
+        title: Text('${widget.departmentId} - years', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+        backgroundColor: Theme.of(context).primaryColor,
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+      ),
       body: Column(children: [
         Padding(padding: const EdgeInsets.all(12), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           const Text('Years', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -552,7 +570,11 @@ class _SemesterListState extends State<SemesterList> {
   Widget build(BuildContext context) {
     final stream = _db.collection('degree-level').doc(widget.degreeId).collection('department').doc(widget.departmentId).collection('year').doc(widget.yearId).collection('semester').snapshots();
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.departmentId} • Year ${widget.yearId} • Semesters')),
+      appBar: AppBar(
+        title: Text('${widget.departmentId} • Year ${widget.yearId} • Semesters', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+        backgroundColor: Theme.of(context).primaryColor,
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+      ),
       body: Column(children: [
         Padding(padding: const EdgeInsets.all(12), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           const Text('Semesters', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -697,7 +719,11 @@ class _SubjectListState extends State<SubjectList> {
       .collection('subjects').snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Subjects')),
+      appBar: AppBar(
+        title: Text('Subjects', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+        backgroundColor: Theme.of(context).primaryColor,
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _addOrEditSubject(),
         child: const Icon(Icons.add),
@@ -845,7 +871,11 @@ class _UnitListState extends State<UnitList> {
   Widget build(BuildContext context) {
     final stream = widget.subjectRef.collection('units').snapshots();
     return Scaffold(
-      appBar: AppBar(title: const Text('Units')),
+      appBar: AppBar(
+        title: Text('Units', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+        backgroundColor: Theme.of(context).primaryColor,
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _addOrEditUnit(),
         child: const Icon(Icons.add),

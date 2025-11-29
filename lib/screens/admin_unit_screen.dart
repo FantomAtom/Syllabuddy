@@ -39,7 +39,11 @@ class _AdminUnitListState extends State<AdminUnitList> {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.subjectId} Units')),
+      appBar: AppBar(
+        title: Text('${widget.subjectId} Units', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+        backgroundColor: Theme.of(context).primaryColor,
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateUnitDialog,
         child: const Icon(Icons.add),

@@ -28,7 +28,11 @@ class _AdminSemesterListState extends State<AdminSemesterList> {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: Text('Year ${widget.yearId} Semesters')),
+      appBar: AppBar(
+        title: Text('Year ${widget.yearId} Semesters', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+        backgroundColor: Theme.of(context).primaryColor,
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateSemesterDialog,
         child: const Icon(Icons.add),
