@@ -11,6 +11,7 @@ class LandingScreen extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(   // ⬅️ Wrap whole UI in SafeArea
+        top: false, 
         child: Column(
           children: [
             // ─────────── Top Banner with Curved Bottom ───────────
