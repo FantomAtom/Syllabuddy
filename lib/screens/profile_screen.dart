@@ -7,14 +7,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:syllabuddy/services/user_service.dart';
 import 'package:syllabuddy/screens/subject_syllabus_screen.dart';
 
-/// ProfileScreen now accepts an optional [onClose] callback that, when provided,
-/// will be called when the user presses the top-left back arrow and there's no
-/// inner navigator history to pop. MainShell provides this callback so the
-/// Profile tab can be closed and the previous tab selected without recreating
-/// MainShell.
+/// ProfileScreen: simplified — no back/close handling or onClose callback.
 class ProfileScreen extends StatefulWidget {
-  final VoidCallback? onClose;
-  const ProfileScreen({Key? key, this.onClose}) : super(key: key);
+  const ProfileScreen({Key? key}) : super(key: key);
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -64,7 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       debugPrint('Failed to fetch profile: $e');
       setState(() {
         _user = currentUser;
-        _email = currentUser.email;
+        _email = currentUser?.email;
         _name = 'Unknown';
         _memberSince = "Unknown";
         _loading = false;
@@ -203,124 +198,109 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _isEditing = false;
   }
 
-  Future<void> _handleBackPressed() async {
-    // Try to pop inner navigation first (this returns true if popped)
-    final popped = await Navigator.maybePop(context);
-    if (popped) return;
-
-    // Nothing to pop in this navigator - ask parent shell to switch tabs.
-    if (widget.onClose != null) {
-      widget.onClose!();
-      return;
-    }
-
-    // fallback: pop until first route (safe fallback)
-    Navigator.of(context).popUntil((route) => route.isFirst);
-  }
-
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
 
     return Scaffold(
-            body: Column(
+      body: Column(
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
+            child: Container(
+              width: double.infinity,
+              color: primary,
+              padding: const EdgeInsets.only(top: 80, bottom: 40),
+              child: Center(
+                child: Text(
+                  'Profile',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
-                  child: Container(
-                    width: double.infinity,
-                    color: primary,
-                    padding: const EdgeInsets.only(top: 80, bottom: 40),
-                    child: Center(
-                      child: Text(
-                        'Profile',
-                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
-                      ),
+                Text(_name ?? '', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primary)),
+                const SizedBox(height: 6),
+                Text(_email ?? '', style: TextStyle(fontSize: 14, color: Colors.grey[700])),
+                const SizedBox(height: 20),
+                Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.school),
+                        const SizedBox(width: 12),
+                        Expanded(child: Text('Member since $_memberSince\nSyllabuddy user', style: TextStyle(color: Colors.grey[800]))),
+                      ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    children: [
-                      Text(_name ?? '', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primary)),
-                      const SizedBox(height: 6),
-                      Text(_email ?? '', style: TextStyle(fontSize: 14, color: Colors.grey[700])),
-                      const SizedBox(height: 20),
-                      Card(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.school),
-                              const SizedBox(width: 12),
-                              Expanded(child: Text('Member since $_memberSince\nSyllabuddy user', style: TextStyle(color: Colors.grey[800]))),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
 
-                      // New: View Bookmarked Subjects
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.bookmark),
-                          label: const Text('Bookmarked subjects'),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
-                          onPressed: _openBookmarks,
-                        ),
-                      ),
+                // New: View Bookmarked Subjects
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.bookmark),
+                    label: const Text('Bookmarked subjects'),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
+                    onPressed: _openBookmarks,
+                  ),
+                ),
 
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Edit Profile'),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
-                          onPressed: () => _editProfile(context),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.dark_mode),
-                          label: const Text('Toggle Dark/Light Mode'),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
-                          onPressed: () {
-                            // TODO: add dark mode toggle
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.logout),
-                          label: const Text('Logout'),
-                          style: ElevatedButton.styleFrom(backgroundColor: primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
-                          onPressed: () => _logout(context),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.delete_forever),
-                          label: const Text('Delete Account'),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
-                          onPressed: () => _confirmAndDelete(context),
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Edit Profile'),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
+                    onPressed: () => _editProfile(context),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.dark_mode),
+                    label: const Text('Toggle Dark/Light Mode'),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
+                    onPressed: () {
+                      // TODO: add dark mode toggle
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Logout'),
+                    style: ElevatedButton.styleFrom(backgroundColor: primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
+                    onPressed: () => _logout(context),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.delete_forever),
+                    label: const Text('Delete Account'),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
+                    onPressed: () => _confirmAndDelete(context),
                   ),
                 ),
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
 }
