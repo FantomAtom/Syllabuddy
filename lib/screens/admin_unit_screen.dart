@@ -1,3 +1,4 @@
+// lib/screens/admin_unit_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -23,9 +24,9 @@ class AdminUnitList extends StatefulWidget {
 class _AdminUnitListState extends State<AdminUnitList> {
   final _db = FirebaseFirestore.instance;
 
-  @override
-  Widget build(BuildContext context) {
-    final stream = _db.collection('degree-level')
+  DocumentReference<Map<String, dynamic>> get _subjectDocRef {
+    return _db
+        .collection('degree-level')
         .doc(widget.degreeId)
         .collection('department')
         .doc(widget.departmentId)
@@ -34,53 +35,125 @@ class _AdminUnitListState extends State<AdminUnitList> {
         .collection('semester')
         .doc(widget.semesterId)
         .collection('subjects')
-        .doc(widget.subjectId)
-        .collection('units')
-        .snapshots();
+        .doc(widget.subjectId);
+  }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.subjectId} Units', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
-        backgroundColor: Theme.of(context).primaryColor,
-        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateUnitDialog,
-        child: const Icon(Icons.add),
-      ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: stream,
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
-          final docs = snap.data!.docs;
-          if (docs.isEmpty) return const Center(child: Text('No units found'));
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, i) {
-              final d = docs[i];
-              final id = d.id;
-              final data = d.data();
-              final display = (data['displayName'] ?? 'Unit $id').toString();
-              final value = data['value'] ?? int.tryParse(id) ?? i + 1; // fallback to index + 1
-              final hours = data['hours']?.toString() ?? '';
-              final description = data['content']?.toString() ?? data['description']?.toString() ?? '';
-              return AdminUnitCard(
-                unitId: id,
-                displayName: display,
-                value: value,
-                hours: hours,
-                description: description,
-                onEdit: () => _showEditUnitDialog(d),
-                onDelete: () => _deleteUnit(d),
+  CollectionReference<Map<String, dynamic>> get _unitsCollection {
+    return _subjectDocRef.collection('units');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Stream the subject doc so the title updates if displayName changes
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: _subjectDocRef.snapshots(),
+      builder: (context, subjectSnap) {
+        final subjectData = subjectSnap.data?.data();
+        final subjectDisplay = subjectData != null && subjectData['displayName'] != null
+            ? subjectData['displayName'].toString()
+            : widget.subjectId;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text('${subjectDisplay} Units', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+            backgroundColor: Theme.of(context).primaryColor,
+            iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: _showCreateUnitDialog,
+            child: const Icon(Icons.add),
+          ),
+          body: FutureBuilder<Query<Map<String, dynamic>>>(
+            future: _pickUnitsQuery(),
+            builder: (context, qSnap) {
+              if (qSnap.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (qSnap.hasError) {
+                debugPrint('Units query pick failed: ${qSnap.error}');
+                return Center(child: Text('Failed to build units query: ${qSnap.error}'));
+              }
+
+              final query = qSnap.data!;
+              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: query.snapshots(),
+                builder: (context, snap) {
+                  if (snap.hasError) {
+                    debugPrint('Units snapshot error: ${snap.error}');
+                    return Center(child: Text('Error loading units: ${snap.error}'));
+                  }
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final docs = snap.data?.docs ?? [];
+                  debugPrint('Units fetched: ${docs.length}');
+
+                  if (docs.isEmpty) {
+                    return const Center(child: Text('No units found'));
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: docs.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, i) {
+                      final d = docs[i];
+                      final id = d.id;
+                      final data = d.data();
+                      final display = (data['displayName'] ?? 'Unit $id').toString();
+                      final value = (data['value'] is int) ? data['value'] as int : (int.tryParse(id) ?? (i + 1));
+                      final hours = data['hours']?.toString() ?? '';
+                      final description = data['content']?.toString() ?? data['description']?.toString() ?? '';
+                      return AdminUnitCard(
+                        unitId: id,
+                        displayName: display,
+                        value: value,
+                        hours: hours,
+                        description: description,
+                        onEdit: () => _showEditUnitDialog(d),
+                        onDelete: () => _deleteUnit(d),
+                      );
+                    },
+                  );
+                },
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
+  }
+
+  /// Picks a Query for units. Tries to use orderBy('value') if it looks safe.
+  /// Returns a Query<Map<String, dynamic>>.
+  Future<Query<Map<String, dynamic>>> _pickUnitsQuery() async {
+    final col = _unitsCollection;
+
+    try {
+      // Quick probe: fetch a small sample to inspect whether integer 'value' exists.
+      final snap = await col.limit(5).get();
+      bool hasIntValue = false;
+      for (final d in snap.docs) {
+        final v = d.data()['value'];
+        if (v is int) {
+          hasIntValue = true;
+          break;
+        }
+      }
+
+      if (hasIntValue) {
+        // safe to order by value
+        return col.orderBy('value');
+      } else {
+        // fallback to plain collection (no ordering)
+        return col;
+      }
+    } catch (e) {
+      // If probe fails (permissions / transient), fall back to plain collection
+      debugPrint('Error probing units collection: $e');
+      return col;
+    }
   }
 
   Future<void> _showCreateUnitDialog() async {
@@ -160,18 +233,7 @@ class _AdminUnitListState extends State<AdminUnitList> {
     final description = config['description'] as String;
 
     try {
-      final unitRef = _db.collection('degree-level')
-          .doc(widget.degreeId)
-          .collection('department')
-          .doc(widget.departmentId)
-          .collection('year')
-          .doc(widget.yearId)
-          .collection('semester')
-          .doc(widget.semesterId)
-          .collection('subjects')
-          .doc(widget.subjectId)
-          .collection('units')
-          .doc(value.toString());
+      final unitRef = _unitsCollection.doc(value.toString());
 
       await unitRef.set({
         'displayName': name,
@@ -181,8 +243,10 @@ class _AdminUnitListState extends State<AdminUnitList> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unit created successfully')));
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
     }
   }
@@ -246,8 +310,10 @@ class _AdminUnitListState extends State<AdminUnitList> {
           'description': descCtrl.text.trim(),
           'content': descCtrl.text.trim(),
         });
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unit updated')));
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Update failed: $e')));
       }
     }
@@ -272,8 +338,10 @@ class _AdminUnitListState extends State<AdminUnitList> {
     if (confirm == true) {
       try {
         await doc.reference.delete();
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unit deleted')));
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
       }
     }
