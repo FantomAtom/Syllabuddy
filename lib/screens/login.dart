@@ -177,7 +177,6 @@ class _LoginPageState extends State<LoginPage> {
                     margin: const EdgeInsets.only(left: 16),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.black, width: 2),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.18),
@@ -186,13 +185,13 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ],
                       // fallback color while image loads
-                      color: Colors.white,
+                      color: const Color.fromARGB(255, 121, 194, 150),
                     ),
                     child: ClipOval(
                       child: Padding(
                         padding: const EdgeInsets.all(2), // small padding between border and image
                         child: Image.asset(
-                          'assets/icon.png',
+                          'assets/logo-transparent.png',
                           fit: BoxFit.cover,
                         ),
                       ),

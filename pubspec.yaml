@@ -52,17 +52,16 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.0
 
-
-flutter_native_splash:
-  color: "#9dfab6"        # background color
-  image: assets/logo-transparent.png  # optional logo
-  android: true
-  ios: true
-
 flutter_launcher_icons:
   android: true
-  ios: true
-  image_path: "assets/logo-transparent.png"
+  ios: false
+  image_path: "assets/logo.png"          # or assets/logo_cropped.png
+
+flutter_native_splash:
+  android: true
+  ios: false
+  color: "#FFFFFF"                       # or your preferred splash bg
+  image: assets/logo-transparent.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -81,7 +80,6 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
       - assets/logo.png
-      - assets/icon.png
       - assets/landing.png
       - assets/logo-transparent.png
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -105,7 +105,7 @@ class LandingScreen extends StatelessWidget {
 
                             TextSpan(
                               text: 'Syllabuddy ',
-                              style: const TextStyle(fontWeight: FontWeight.w700),
+                              style: TextStyle(fontWeight: FontWeight.w700, color: Theme.of(context).primaryColorDark),
                             ),
 
                             const TextSpan(text: 'keeps your '),
@@ -114,7 +114,7 @@ class LandingScreen extends StatelessWidget {
                               text: 'syllabi',
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
-                                color: Theme.of(context).primaryColorDark,
+                                color: Theme.of(context).primaryColor,
                               ),
                             ),
 
@@ -134,7 +134,7 @@ class LandingScreen extends StatelessWidget {
                               text: 'exams',
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
-                                color: Theme.of(context).primaryColorDark,
+                                color: Theme.of(context).primaryColor,
                               ),
                             ),
 
@@ -144,7 +144,7 @@ class LandingScreen extends StatelessWidget {
                               text: 'hall allotments',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                color: Theme.of(context).primaryColorDark,
+                                color: Theme.of(context).primaryColor,
                               ),
                             ),
 

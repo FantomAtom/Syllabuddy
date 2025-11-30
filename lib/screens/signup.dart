@@ -212,21 +212,21 @@ class _SignUpPageState extends State<SignUpPage> {
                     margin: const EdgeInsets.only(left: 16),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.black, width: 2),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.18),
                           blurRadius: 8,
-                          offset: Offset(0, 4),
+                          offset: const Offset(0, 4),
                         ),
                       ],
-                      color: Colors.white,
+                      // fallback color while image loads
+                      color: const Color.fromARGB(255, 121, 194, 150),
                     ),
                     child: ClipOval(
                       child: Padding(
                         padding: const EdgeInsets.all(2),
                         child: Image.asset(
-                          'assets/icon.png',
+                          'assets/logo-transparent.png',
                           fit: BoxFit.cover,
                         ),
                       ),
