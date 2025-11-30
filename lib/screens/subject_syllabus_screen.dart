@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart'; // Clipboard
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:syllabuddy/screens/profile_screen.dart'; // BookmarksScreen
-import 'package:syllabuddy/screens/subject_syllabus_screen.dart' as self; // not used but name consistency
+
+// FIXED: use proper import for BookmarksScreen
+import 'package:syllabuddy/screens/bookmarks_screen.dart';
 
 class SubjectSyllabusScreen extends StatefulWidget {
   final String courseLevel;
@@ -168,7 +169,6 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
 
       final staffSnap = await staffRef.get();
       if (staffSnap.exists) {
-        // Note: Firestore rules must allow staff updates to include bookmarks (see rules below)
         if (_bookmarked) {
           await staffRef.update({'bookmarks': FieldValue.arrayRemove([subjectPath])});
         } else {
@@ -183,7 +183,7 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
         return;
       }
 
-      // No profile doc exists — create a minimal users doc with bookmarks
+      // No profile doc exists — create it
       await userRef.set({
         'createdAt': FieldValue.serverTimestamp(),
         'email': user.email,
@@ -196,14 +196,10 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
         _loadingBookmark = false;
       });
       _showBookmarkToast(true);
-    } on FirebaseException catch (e) {
-      setState(() => _loadingBookmark = false);
-      debugPrint('Bookmark update failed: $e');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update bookmark: ${e.message}')));
     } catch (e) {
       setState(() => _loadingBookmark = false);
-      debugPrint('Bookmark error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('An error occurred while updating bookmark')));
+      debugPrint('Bookmark update failed: $e');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to update bookmark')));
     }
   }
 
@@ -212,15 +208,13 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
   }
 
   void _showBookmarkToast(bool added) {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(added ? 'Bookmarked' : 'Removed bookmark'),
         duration: const Duration(seconds: 3),
         action: SnackBarAction(
           label: 'View',
           onPressed: () {
-            // navigate to Bookmarks screen from ProfileScreen file
             Navigator.push(context, MaterialPageRoute(builder: (_) => const BookmarksScreen()));
           },
         ),
@@ -256,7 +250,7 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
     return Scaffold(
       body: Column(
         children: [
-          // Top curved banner with back button and bookmark
+          // Top banner
           ClipRRect(
             borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(40),
@@ -288,7 +282,7 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
                     ),
                   ),
 
-                  // Bookmark icon on the right with animation
+                  // Bookmark icon
                   Align(
                     alignment: Alignment.centerRight,
                     child: Padding(
@@ -297,7 +291,13 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
                           ? const SizedBox(
                               height: 44,
                               width: 44,
-                              child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                ),
+                              ),
                             )
                           : ScaleTransition(
                               scale: _scaleAnim,
@@ -307,7 +307,6 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
                                   color: Colors.white,
                                   size: 28,
                                 ),
-                                tooltip: _bookmarked ? 'Remove bookmark' : 'Bookmark subject',
                                 onPressed: _toggleBookmark,
                               ),
                             ),
@@ -318,7 +317,7 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
             ),
           ),
 
-          // Units list: validate subject and stream units
+          // Units list below
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -326,23 +325,7 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
                 future: subjectDocRef.get(),
                 builder: (context, subjectSnapshot) {
                   if (subjectSnapshot.hasError) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.error_outline, size: 56, color: Colors.redAccent),
-                          const SizedBox(height: 12),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: Text(
-                              'Error checking subject:\n${subjectSnapshot.error}',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 16, color: Colors.grey.shade800),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
+                    return Center(child: Text('Error: ${subjectSnapshot.error}'));
                   }
 
                   if (subjectSnapshot.connectionState == ConnectionState.waiting) {
@@ -351,36 +334,14 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
 
                   final sdoc = subjectSnapshot.data;
                   if (sdoc == null || !sdoc.exists) {
-                    return Center(
-                      child: Text(
-                        'No subject found at:\n${subjectDocRef.path}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
-                      ),
-                    );
+                    return Center(child: Text('Subject not found.'));
                   }
 
                   return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                     stream: unitsCollection.snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
-                        return Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.error_outline, size: 56, color: Colors.redAccent),
-                              const SizedBox(height: 12),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 24),
-                                child: Text(
-                                  'Error loading units:\n${snapshot.error}',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 16, color: Colors.grey.shade800),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
+                        return Center(child: Text('Error loading units.'));
                       }
 
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -390,16 +351,10 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
                       final docs = snapshot.data?.docs ?? [];
 
                       if (docs.isEmpty) {
-                        return Center(
-                          child: Text(
-                            'No units found for this subject.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
-                          ),
-                        );
+                        return const Center(child: Text('No units available.'));
                       }
 
-                      // Sort numeric unit IDs ascending if possible
+                      // Sort unit IDs numerically where possible
                       docs.sort((a, b) {
                         final ai = int.tryParse(a.id);
                         final bi = int.tryParse(b.id);
@@ -409,6 +364,7 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
 
                       return ListView.separated(
                         itemCount: docs.length,
+                        padding: const EdgeInsets.only(bottom: 16),
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final doc = docs[index];
@@ -423,23 +379,15 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
                               title: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Expanded(
-                                    child: Text(
-                                      title,
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
+                                  Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold))),
                                   IconButton(
                                     icon: const Icon(Icons.copy, size: 20),
-                                    tooltip: 'Copy unit content',
+                                    tooltip: 'Copy content',
                                     onPressed: content.isNotEmpty
                                         ? () {
                                             Clipboard.setData(ClipboardData(text: content));
                                             ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Unit content copied to clipboard!'),
-                                                duration: Duration(seconds: 1),
-                                              ),
+                                              const SnackBar(content: Text('Copied to clipboard!')),
                                             );
                                           }
                                         : null,
@@ -448,19 +396,15 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
                               ),
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.all(16.0),
+                                  padding: const EdgeInsets.all(16),
                                   child: content.isNotEmpty
                                       ? Text(content, style: const TextStyle(fontSize: 15, height: 1.5))
-                                      : Text(
-                                          'No content available for this unit.',
-                                          style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
-                                        ),
+                                      : Text('No content.', style: TextStyle(color: Colors.grey.shade600)),
                                 ),
                               ],
                             ),
                           );
                         },
-                        padding: const EdgeInsets.only(bottom: 16),
                       );
                     },
                   );
