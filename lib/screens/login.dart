@@ -288,7 +288,7 @@ class _LoginPageState extends State<LoginPage> {
                               Theme.of(context).primaryColorDark,
                               Theme.of(context).primaryColor,
                             ],
-                            stops: [0.0, 0.6],
+                            stops: [0.0, 0.5],
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
                           ),

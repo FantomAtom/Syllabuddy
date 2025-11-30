@@ -28,7 +28,7 @@ class LandingScreen extends StatelessWidget {
               ),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.only(top: 80, bottom: 40, left: 20, right: 20),
+                padding: const EdgeInsets.only(top: 60, bottom: 40, left: 20, right: 20),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -56,14 +56,13 @@ class LandingScreen extends StatelessWidget {
 
             // Bottom Content
             Expanded(
-              child: Container(
-                width: double.infinity,
-                color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              child: SingleChildScrollView(
+                // same padding you used before
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title
+                    // Title (unchanged)
                     RichText(
                       text: TextSpan(
                         text: 'Welcome to ',
@@ -83,28 +82,86 @@ class LandingScreen extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 10),
 
-                    // Subtitle (requested text)
+                    // Subtitle (your styled container, unchanged)
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: primary.withOpacity(0.06),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text(
-                        'A smart companion built to support your college experience. Syllabuddy keeps your syllabi, schedules, exams, hall allotments, and important academic essentials in one organized place, helping you stay prepared and manage each semester with ease.',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.black87,
-                          height: 1.35,
+                      child: Text.rich(
+                        TextSpan(
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.black87,
+                            height: 1.35,
+                          ),
+                          children: [
+                            const TextSpan(
+                              text: 'A smart companion built to support your college experience. ',
+                            ),
+
+                            TextSpan(
+                              text: 'Syllabuddy ',
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+
+                            const TextSpan(text: 'keeps your '),
+
+                            TextSpan(
+                              text: 'syllabi',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: Theme.of(context).primaryColorDark,
+                              ),
+                            ),
+
+                            const TextSpan(text: ', '),
+
+                            TextSpan(
+                              text: 'schedules',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+
+                            const TextSpan(text: ', '),
+
+                            TextSpan(
+                              text: 'exams',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: Theme.of(context).primaryColorDark,
+                              ),
+                            ),
+
+                            const TextSpan(text: ', and '),
+
+                            TextSpan(
+                              text: 'hall allotments',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).primaryColorDark,
+                              ),
+                            ),
+
+                            const TextSpan(
+                              text:
+                                  ', along with other important academic essentials, all in one organized place to help you stay prepared and manage each semester with ease.',
+                            ),
+                          ],
                         ),
                       ),
+
                     ),
 
-                    const Spacer(),
+                    // small spacer (keeps the same visual gap as before)
+                    const SizedBox(height: 20),
 
-                    // Get Started Button with matching gradient
+                    // Get Started Button with its SafeArea to keep it off the phone's bottom inset
                     SafeArea(
                       top: false,
                       child: SizedBox(
@@ -116,18 +173,15 @@ class LandingScreen extends StatelessWidget {
                                 Theme.of(context).primaryColorDark,
                                 Theme.of(context).primaryColor,
                               ],
-                              stops: const [0.0, 0.8],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                              stops: const [0.0, 0.5],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
                             ),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: ElevatedButton(
                             onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const LoginPage()),
-                              );
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage()));
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,

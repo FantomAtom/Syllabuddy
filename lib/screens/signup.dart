@@ -375,7 +375,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               Theme.of(context).primaryColorDark,
                               Theme.of(context).primaryColor,
                             ],
-                            stops: const [0.0, 0.6],
+                            stops: const [0.0, 0.5],
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
                           ),
