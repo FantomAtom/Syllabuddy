@@ -9,12 +9,18 @@ class LandingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
 
+    // responsive image size
+    final screenW = MediaQuery.of(context).size.width;
+    double imgSize = screenW * 0.62;
+    if (imgSize > 420) imgSize = 420;
+    if (imgSize < 260) imgSize = 260;
+
     return Scaffold(
-      body: SafeArea(   // ⬅️ Wrap whole UI in SafeArea
-        top: false, 
+      body: SafeArea(
+        top: false,
         child: Column(
           children: [
-            // ─────────── Top Banner with Curved Bottom ───────────
+            // Top banner with curved bottom and gradient
             ClipRRect(
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(40),
@@ -22,23 +28,33 @@ class LandingScreen extends StatelessWidget {
               ),
               child: Container(
                 width: double.infinity,
-                color: primary,
-                padding: const EdgeInsets.only(top: 80, bottom: 40),
+                padding: const EdgeInsets.only(top: 80, bottom: 40, left: 20, right: 20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Theme.of(context).primaryColorDark,
+                      Theme.of(context).primaryColor,
+                    ],
+                    stops: const [0.0, 0.8],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Welcome Image
+                    // responsive image
                     Image.asset(
                       'assets/landing.png',
-                      height: 400,
-                      width: 400,
+                      height: 350,
+                      fit: BoxFit.contain,
                     ),
                   ],
                 ),
               ),
             ),
 
-            // ─────────── Bottom Content ───────────
+            // Bottom Content
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -68,52 +84,67 @@ class LandingScreen extends StatelessWidget {
                     ),
 
                     const SizedBox(height: 16),
-                    // Description Text
+
+                    // Subtitle (requested text)
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: primary.withOpacity(0.5),
+                        color: primary.withOpacity(0.06),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Text(
-                        'Your personal companion to manage syllabi and stay organized throughout your academic journey!',
+                        'A smart companion built to support your college experience. Syllabuddy keeps your syllabi, schedules, exams, hall allotments, and important academic essentials in one organized place, helping you stay prepared and manage each semester with ease.',
                         style: TextStyle(
-                          fontSize: 20,
-                          color: Colors.black,
-                          fontWeight: FontWeight.normal,
+                          fontSize: 18,
+                          color: Colors.black87,
+                          height: 1.35,
                         ),
                       ),
                     ),
 
                     const Spacer(),
 
-                    // Get Started Button
-                    SafeArea(  // ⬅️ Extra SafeArea only for bottom button
+                    // Get Started Button with matching gradient
+                    SafeArea(
                       top: false,
                       child: SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const LoginPage(),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Theme.of(context).primaryColorDark,
+                                Theme.of(context).primaryColor,
+                              ],
+                              stops: const [0.0, 0.8],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Text(
-                            'Get Started',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const LoginPage()),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Get Started',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),

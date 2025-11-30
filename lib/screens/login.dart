@@ -57,64 +57,68 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _login() async {
-  _setError(null);
-  if (!(_formKey.currentState?.validate() ?? false)) return;
+    _setError(null);
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
-  setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-  try {
-    final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: _emailCtrl.text.trim(),
-      password: _passwordCtrl.text.trim(),
-    );
-
-    // ✅ Save login state locally
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', true);
-
-    final current = credential.user;
-    if (current == null) {
-      throw FirebaseAuthException(code: 'user-not-found', message: 'Sign-in failed.');
-    }
-
-    // Firestore profile read (non-fatal)
-    String role = 'student';
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(current.uid).get();
-      if (doc.exists) {
-        final data = doc.data();
-        final fetchedRole = data?['role'];
-        if (fetchedRole is String && fetchedRole.isNotEmpty) role = fetchedRole;
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailCtrl.text.trim(),
+        password: _passwordCtrl.text.trim(),
+      );
+
+      // ✅ Save login state locally
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
+
+      final current = credential.user;
+      if (current == null) {
+        throw FirebaseAuthException(code: 'user-not-found', message: 'Sign-in failed.');
       }
-    } catch (fsErr) {
-      debugPrint('Firestore read failed: $fsErr — will continue as student.');
+
+      // Firestore profile read (non-fatal)
+      String role = 'student';
+      try {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(current.uid).get();
+        if (doc.exists) {
+          final data = doc.data();
+          final fetchedRole = data?['role'];
+          if (fetchedRole is String && fetchedRole.isNotEmpty) role = fetchedRole;
+        }
+      } catch (fsErr) {
+        debugPrint('Firestore read failed: $fsErr — will continue as student.');
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Signed in as ${current.email}')),
+      );
+
+      // ✅ Instead of CoursesScreen → go to MainShell
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainShell()),
+      );
+    } on FirebaseAuthException catch (e) {
+      _setError(_mapAuthException(e));
+    } catch (e, st) {
+      debugPrint('Unexpected error during login: $e');
+      debugPrint('$st');
+      _setError('Unexpected error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Signed in as ${current.email}')),
-    );
-
-    // ✅ Instead of CoursesScreen → go to MainShell
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const MainShell()),
-    );
-  } on FirebaseAuthException catch (e) {
-    _setError(_mapAuthException(e));
-  } catch (e, st) {
-    debugPrint('Unexpected error during login: $e');
-    debugPrint('$st');
-    _setError('Unexpected error: $e');
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
+
+    // small, responsive image size: proportional to screen but clamped
+    double imgSize = MediaQuery.of(context).size.width * 0.28;
+    if (imgSize < 80) imgSize = 80;
+    if (imgSize > 160) imgSize = 160;
 
     return Scaffold(
       body: Column(
@@ -123,16 +127,77 @@ class _LoginPageState extends State<LoginPage> {
             borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
             child: Container(
               width: double.infinity,
-              color: primary,
-              padding: const EdgeInsets.only(top: 80, bottom: 40),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              padding: const EdgeInsets.only(top: 80, bottom: 40, left: 20, right: 20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).primaryColorDark,  // darker (your 700)
+                    Theme.of(context).primaryColor,      // main primary (your 500)
+                  ],
+                  stops: [0.0, 0.8],   // primary occupies from 0.0..0.7 -> appears larger
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              // Use a Row so text is left and icon is right (side-by-side)
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Image.asset('assets/icon.png', height: 100),
-                  const SizedBox(height: 16),
-                  Text('Welcome back!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9))),
-                  const SizedBox(height: 20),
-                  Text('Login', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9))),
+                  // Text block on the left (takes remaining space)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Welcome back!',
+                          style: TextStyle(
+                            fontSize: 25,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Login',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Icon on the right with circular border + shadow
+                  Container(
+                    width: imgSize,
+                    height: imgSize,
+                    margin: const EdgeInsets.only(left: 16),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.black, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.18),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                      // fallback color while image loads
+                      color: Colors.white,
+                    ),
+                    child: ClipOval(
+                      child: Padding(
+                        padding: const EdgeInsets.all(2), // small padding between border and image
+                        child: Image.asset(
+                          'assets/icon.png',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -148,7 +213,7 @@ class _LoginPageState extends State<LoginPage> {
 
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -190,7 +255,7 @@ class _LoginPageState extends State<LoginPage> {
                       validator: (v) => (v == null || v.isEmpty) ? 'Enter your password' : null,
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
 
                     Align(
                       alignment: Alignment.centerRight,
@@ -212,19 +277,50 @@ class _LoginPageState extends State<LoginPage> {
                         child: const Text('Forgot Password?'),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 10),
 
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _login,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Theme.of(context).primaryColorDark,
+                              Theme.of(context).primaryColor,
+                            ],
+                            stops: [0.0, 0.6],
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: _isLoading ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Login'),
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _login,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  'Login',
+                                  style: const TextStyle(
+                                    fontSize: 16,   // change to your liking
+                                  ),
+                                ),        
+                        ),
                       ),
                     ),
 

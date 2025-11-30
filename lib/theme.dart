@@ -1,29 +1,21 @@
+// lib/app_theme.dart
 import 'package:flutter/material.dart';
 
 const Color kPrimaryColor = Color(0xFF136B5B);
 
 final ThemeData appTheme = ThemeData(
-  primaryColor: kPrimaryColor,
-  // build a ColorScheme from a MaterialColor and set an explicit error color
-  colorScheme: ColorScheme.fromSwatch(
-    primarySwatch: const MaterialColor(
-      0xFF136B5B,
-      <int, Color>{
-        50:  Color(0xFFE6F2EF),
-        100: Color(0xFFB3D9CF),
-        200: Color(0xFF80C0AF),
-        300: Color(0xFF4DA88F),
-        400: Color(0xFF269673),
-        500: Color(0xFF136B5B),
-        600: Color(0xFF125C52),
-        700: Color(0xFF104D47),
-        800: Color(0xFF0D3E3C),
-        900: Color(0xFF082A2A),
-      },
-    ),
+  // Build a ColorScheme from a seed color (simpler than manually creating a big swatch)
+  colorScheme: ColorScheme.fromSeed(
+    seedColor: kPrimaryColor,
+    primary: kPrimaryColor,
+    // you can change brightness: Brightness.dark for a dark theme
   ).copyWith(
-    error: const Color(0xFFC54B4B), // explicit error color used by Theme.of(context).colorScheme.error
+    error: const Color(0xFFC54B4B),
   ),
+
+  // The old properties still work and will be derived from colorScheme
+  primaryColor: kPrimaryColor,
+  primaryColorDark: const Color.fromARGB(255, 7, 60, 50), // optional explicit override
 
   scaffoldBackgroundColor: Colors.white,
   inputDecorationTheme: InputDecorationTheme(
@@ -35,6 +27,7 @@ final ThemeData appTheme = ThemeData(
       borderSide: BorderSide.none,
     ),
   ),
+
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
       backgroundColor: kPrimaryColor,
@@ -45,4 +38,7 @@ final ThemeData appTheme = ThemeData(
       padding: const EdgeInsets.symmetric(vertical: 16),
     ),
   ),
+
+  // small convenience: readable text defaults
+  textTheme: Typography.material2018().black.apply(bodyColor: Colors.black87),
 );

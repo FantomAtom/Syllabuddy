@@ -147,9 +147,15 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
 
+    // small, responsive image size: proportional to screen but clamped
+    double imgSize = MediaQuery.of(context).size.width * 0.28;
+    if (imgSize < 80) imgSize = 80;
+    if (imgSize > 160) imgSize = 160;
+
     return Scaffold(
       body: Column(
         children: [
+          // Header (gradient + text left, icon right)
           ClipRRect(
             borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(40),
@@ -157,26 +163,74 @@ class _SignUpPageState extends State<SignUpPage> {
             ),
             child: Container(
               width: double.infinity,
-              color: primary,
-              padding: const EdgeInsets.only(top: 80, bottom: 40),
-              child: Column(
+              padding: const EdgeInsets.only(top: 80, bottom: 40, left: 20, right: 20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).primaryColorDark,
+                    Theme.of(context).primaryColor,
+                  ],
+                  stops: const [0.0, 0.8],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Image.asset('assets/icon.png', height: 100),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Create an Account!',
-                    style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white.withOpacity(0.9)),
+                  // Text block on the left
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Text(
+                          'Create an Account!',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Sign up',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Sign up',
-                    style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white.withOpacity(0.9)),
+
+                  // Icon on the right with circular border + shadow (matching login)
+                  Container(
+                    width: imgSize,
+                    height: imgSize,
+                    margin: const EdgeInsets.only(left: 16),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.black, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.18),
+                          blurRadius: 8,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                      color: Colors.white,
+                    ),
+                    child: ClipOval(
+                      child: Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: Image.asset(
+                          'assets/icon.png',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -187,17 +241,14 @@ class _SignUpPageState extends State<SignUpPage> {
             Container(
               width: double.infinity,
               color: Colors.red.withOpacity(0.06),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               child: Text(_errorMessage!,
-                  style: const TextStyle(
-                      color: Colors.red, fontWeight: FontWeight.w600)),
+                  style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
             ),
 
           Expanded(
             child: SingleChildScrollView(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -291,8 +342,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           hintText: 'Student ID (optional)',
                           filled: true,
                           fillColor: Colors.grey[100],
-                          prefixIcon:
-                              Icon(Icons.perm_identity, color: primary),
+                          prefixIcon: Icon(Icons.perm_identity, color: primary),
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none)),
@@ -302,13 +352,10 @@ class _SignUpPageState extends State<SignUpPage> {
                     DropdownButtonFormField<String>(
                       value: _role,
                       items: const [
-                        DropdownMenuItem(
-                            value: 'student', child: Text('Student')),
-                        DropdownMenuItem(
-                            value: 'staff', child: Text('Staff')),
+                        DropdownMenuItem(value: 'student', child: Text('Student')),
+                        DropdownMenuItem(value: 'staff', child: Text('Staff')),
                       ],
-                      onChanged: (v) =>
-                          setState(() => _role = v ?? 'student'),
+                      onChanged: (v) => setState(() => _role = v ?? 'student'),
                       decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.grey[100],
@@ -318,24 +365,44 @@ class _SignUpPageState extends State<SignUpPage> {
                     ),
                     const SizedBox(height: 32),
 
+                    // Gradient button (matches login)
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _signUp,
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Theme.of(context).primaryColorDark,
+                              Theme.of(context).primaryColor,
+                            ],
+                            stops: const [0.0, 0.6],
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _signUp,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
                             foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 16)),
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2))
-                            : const Text('Create Account'),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Create Account'),
+                        ),
                       ),
                     ),
 
@@ -348,13 +415,11 @@ class _SignUpPageState extends State<SignUpPage> {
                         GestureDetector(
                             onTap: () => Navigator.pushReplacement(
                                 context,
-                                MaterialPageRoute(
-                                    builder: (_) => const LoginPage())),
+                                MaterialPageRoute(builder: (_) => const LoginPage())),
                             child: Text('Login',
                                 style: TextStyle(
                                     color: primary,
                                     fontWeight: FontWeight.bold))),
-
                       ],
                     ),
                     const SizedBox(height: 12),
