@@ -122,40 +122,83 @@ class _AdminDepartmentListState extends State<AdminDepartmentList> {
       await _createDepartmentWithStructure(result);
     }
   }
-
+  
+  /// Creates exactly years * semestersPerYear new semester docs starting after the current max.
   Future<void> _createDepartmentWithStructure(Map<String, dynamic> config) async {
     final name = config['name'] as String;
     final years = config['years'] as int;
-    final semesters = config['semesters'] as int;
+    final semestersPerYear = config['semesters'] as int;
     final deptId = name.replaceAll(' ', '_').toLowerCase();
 
     try {
       final deptRef = _db.collection('degree-level').doc(widget.degreeId).collection('department').doc(deptId);
+
+      // Department meta
       await deptRef.set({
         'displayName': name,
         'createdAt': FieldValue.serverTimestamp(),
+        'defaultSemestersPerYear': semestersPerYear,
+        'yearsCount': years,
       });
 
-      // Create year and semester structure
-      for (int y = 1; y <= years; y++) {
-        final yearRef = deptRef.collection('year').doc(y.toString());
-        await yearRef.set({
-          'displayName': 'Year $y',
-          'value': y,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-
-        for (int s = 1; s <= semesters; s++) {
-          final semRef = yearRef.collection('semester').doc(s.toString());
-          await semRef.set({
-            'displayName': 'Semester $s',
-            'value': s,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+      // 1) Collect existing semester values across all years (one pass)
+      final existingValues = <int>{};
+      final yearsSnap = await deptRef.collection('year').get();
+      for (final ydoc in yearsSnap.docs) {
+        final semSnap = await ydoc.reference.collection('semester').get();
+        for (final sdoc in semSnap.docs) {
+          final v = sdoc.data()['value'];
+          if (v is int) existingValues.add(v);
         }
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Department created successfully')));
+      final maxExisting = existingValues.isEmpty ? 0 : existingValues.reduce((a, b) => a > b ? a : b);
+      final startOverall = maxExisting + 1;
+      final totalToCreate = years * semestersPerYear;
+      int created = 0;
+
+      // 2) Build and create the exact desired overall numbers (start..start+totalToCreate-1)
+      for (int idx = 0; idx < totalToCreate; idx++) {
+        final overall = startOverall + idx;
+        // map overall -> yearNumber and semesterInYear (deterministic)
+        final yearNumber = (idx ~/ semestersPerYear) + 1; // 0.. -> 1..
+        final semesterInYear = (idx % semestersPerYear) + 1;
+
+        final yearRef = deptRef.collection('year').doc(yearNumber.toString());
+        // Ensure year doc exists (set if not)
+        await yearRef.set({
+          'displayName': 'Year $yearNumber',
+          'value': yearNumber,
+          'semestersCount': semestersPerYear,
+          'createdAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        final semRef = yearRef.collection('semester').doc(overall.toString());
+
+        // Only create if not already present (idempotent)
+        final exists = await semRef.get();
+        if (exists.exists) {
+          // ensure fields are up-to-date
+          await semRef.set({
+            'displayName': 'Semester $overall',
+            'value': overall,
+            'yearNumber': yearNumber,
+            'semesterInYear': semesterInYear,
+            'createdAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } else {
+          await semRef.set({
+            'displayName': 'Semester $overall',
+            'value': overall,
+            'yearNumber': yearNumber,
+            'semesterInYear': semesterInYear,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          created++;
+        }
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Department created — $created new semesters.')));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
     }

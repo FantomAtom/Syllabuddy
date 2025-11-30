@@ -16,58 +16,64 @@ class _AdminYearListState extends State<AdminYearList> {
 
   @override
   Widget build(BuildContext context) {
-    final stream = _db.collection('degree-level')
-        .doc(widget.degreeId)
-        .collection('department')
-        .doc(widget.departmentId)
-        .collection('year')
-        .orderBy('value')
-        .snapshots();
+    final deptDocRef = _db.collection('degree-level').doc(widget.degreeId).collection('department').doc(widget.departmentId);
+    final yearsStream = deptDocRef.collection('year').orderBy('value').snapshots();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.departmentId} Years', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
-        backgroundColor: Theme.of(context).primaryColor,
-        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateYearDialog,
-        child: const Icon(Icons.add),
-      ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: stream,
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
-          final docs = snap.data!.docs;
-          if (docs.isEmpty) return const Center(child: Text('No years found'));
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, i) {
-              final d = docs[i];
-              final id = d.id;
-              final display = (d.data()['displayName'] ?? 'Year $id').toString();
-              final value = d.data()['value'] ?? int.tryParse(id) ?? 0;
-              return AdminYearCard(
-                yearId: id,
-                displayName: display,
-                value: value,
-                onEdit: () => _showEditYearDialog(d),
-                onDelete: () => _deleteYear(d),
-                onManage: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => AdminSemesterList(
-                    degreeId: widget.degreeId,
-                    departmentId: widget.departmentId,
+    // Use a StreamBuilder to fetch department displayName for the header
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: deptDocRef.snapshots(),
+      builder: (context, deptSnap) {
+        final deptData = deptSnap.data?.data();
+        final deptDisplay = deptData != null && deptData['displayName'] != null
+            ? '${deptData['displayName']} Years'
+            : '${widget.departmentId} Years';
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(deptDisplay, style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+            backgroundColor: Theme.of(context).primaryColor,
+            iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: _showCreateYearDialog,
+            child: const Icon(Icons.add),
+          ),
+          body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: yearsStream,
+            builder: (context, snap) {
+              if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
+              final docs = snap.data!.docs;
+              if (docs.isEmpty) return const Center(child: Text('No years found'));
+              return ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: docs.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, i) {
+                  final d = docs[i];
+                  final id = d.id;
+                  final display = (d.data()['displayName'] ?? 'Year $id').toString();
+                  final value = d.data()['value'] ?? int.tryParse(id) ?? 0;
+                  return AdminYearCard(
                     yearId: id,
-                  )
-                )),
+                    displayName: display,
+                    value: value,
+                    onEdit: () => _showEditYearDialog(d),
+                    onDelete: () => _deleteYear(d),
+                    onManage: () => Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => AdminSemesterList(
+                        degreeId: widget.degreeId,
+                        departmentId: widget.departmentId,
+                        yearId: id,
+                      )
+                    )),
+                  );
+                },
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -137,36 +143,68 @@ class _AdminYearListState extends State<AdminYearList> {
     }
   }
 
+  /// Create a year and its semesters. Semesters are numbered continuously across department.
+  /// This computes the current max overall semester and then creates exactly `semesters` new ones.
   Future<void> _createYearWithSemesters(Map<String, dynamic> config) async {
     final name = config['name'] as String;
     final value = config['value'] as int;
     final semesters = config['semesters'] as int;
 
     try {
-      final yearRef = _db.collection('degree-level')
-          .doc(widget.degreeId)
-          .collection('department')
-          .doc(widget.departmentId)
-          .collection('year')
-          .doc(value.toString());
+      final deptRef = _db.collection('degree-level').doc(widget.degreeId).collection('department').doc(widget.departmentId);
+      final yearRef = deptRef.collection('year').doc(value.toString());
 
-      await yearRef.set({
-        'displayName': name,
-        'value': value,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      // Create semesters
-      for (int s = 1; s <= semesters; s++) {
-        final semRef = yearRef.collection('semester').doc(s.toString());
-        await semRef.set({
-          'displayName': 'Semester $s',
-          'value': s,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+      // 1) Collect existing semester values across all years (one pass)
+      final existingValues = <int>{};
+      final yearsSnap = await deptRef.collection('year').get();
+      for (final ydoc in yearsSnap.docs) {
+        final semSnap = await ydoc.reference.collection('semester').get();
+        for (final sdoc in semSnap.docs) {
+          final v = sdoc.data()['value'];
+          if (v is int) existingValues.add(v);
+        }
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Year created successfully')));
+      final maxExisting = existingValues.isEmpty ? 0 : existingValues.reduce((a, b) => a > b ? a : b);
+      final startOverall = maxExisting + 1;
+      final totalToCreate = semesters; // exactly this many new semesters
+      int created = 0;
+
+      // 2) create the semesters with consecutive overall numbers start..start+totalToCreate-1
+      for (int idx = 0; idx < totalToCreate; idx++) {
+        final overall = startOverall + idx;
+        final semesterInYear = idx + 1; // 1..semesters
+        // create the year doc (merge) before writing sems
+        await yearRef.set({
+          'displayName': name,
+          'value': value,
+          'semestersCount': semesters,
+          'createdAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        final semRef = yearRef.collection('semester').doc(overall.toString());
+        final exists = await semRef.get();
+        if (exists.exists) {
+          await semRef.set({
+            'displayName': 'Semester $overall',
+            'value': overall,
+            'yearNumber': value,
+            'semesterInYear': semesterInYear,
+            'createdAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } else {
+          await semRef.set({
+            'displayName': 'Semester $overall',
+            'value': overall,
+            'yearNumber': value,
+            'semesterInYear': semesterInYear,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          created++;
+        }
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Year created — $created new semesters.')));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
     }
