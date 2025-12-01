@@ -10,6 +10,9 @@ import 'package:syllabuddy/screens/bookmarks_screen.dart';
 import 'package:syllabuddy/theme_service.dart';
 import 'package:syllabuddy/theme.dart';
 
+import 'package:syllabuddy/widgets/app_header.dart';
+import 'package:syllabuddy/styles/app_styles.dart';
+
 /// ProfileScreen: simplified — no back/close handling or onClose callback.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -286,7 +289,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Color? solidColor,
     Color? foreground,
   }) {
-    final borderRadius = BorderRadius.circular(12.0);
+    final borderRadius = BorderRadius.circular(AppStyles.radiusMedium);
     final fg = foreground ?? Colors.white;
 
     if (gradient != null) {
@@ -423,7 +426,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final h = HSLColor.fromColor(primary);
     final switchSolidColor = isDark
         ? h.withLightness((h.lightness - 0.32).clamp(0.0, 1.0)).toColor()
-        : Colors.grey.shade300;
+        : const Color.fromARGB(255, 153, 215, 196);
 
     final switchForeground = isDark ? Colors.white : Colors.black87;
 
@@ -435,21 +438,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       body: Column(
         children: [
-          // header (thinner, gradient like other screens)
-          ClipRRect(
-            borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(gradient: primaryGradient),
-              padding: const EdgeInsets.only(top: 60, bottom: 28),
-              child: Center(
-                child: Text(
-                  'Profile',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
-                ),
-              ),
-            ),
-          ),
+          // shared header for consistent look
+          AppHeader(title: 'Profile', showBack: true),
 
           const SizedBox(height: 20),
 
@@ -464,30 +454,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(_email ?? '', style: TextStyle(fontSize: 14, color: subtitleColor)),
                 const SizedBox(height: 18),
 
-                // Member since card — use theme.cardColor and readable text
-                Card(
-                  color: theme.cardColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        Icon(Icons.school, color: nameAndMemberColor),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Member since ${_memberSince ?? "Unknown"}\nSyllabuddy user',
-                            style: TextStyle(color: nameAndMemberColor.withOpacity(0.95)),
-                          ),
+                // Member since card — use AppStyles styling
+                Container(
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+                    boxShadow: [AppStyles.shadow(context)],
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.school, color: nameAndMemberColor),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Member since ${_memberSince ?? "Unknown"}\nSyllabuddy user',
+                          style: TextStyle(color: nameAndMemberColor.withOpacity(0.95)),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
 
                 const SizedBox(height: 22),
 
-                // 1) Bookmarked subjects — primary gradient
+                // Action buttons (kept your buildActionButton API but styled to match app)
                 SizedBox(
                   width: double.infinity,
                   child: buildActionButton(
@@ -502,7 +493,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 12),
 
-                // 2) Edit Profile — primary gradient
                 SizedBox(
                   width: double.infinity,
                   child: buildActionButton(
@@ -517,7 +507,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 12),
 
-                // 3) Toggle theme — uses a solid color (derived) that contrasts better in dark mode
                 SizedBox(
                   width: double.infinity,
                   child: buildActionButton(
@@ -540,7 +529,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 12),
 
-                // 4) Logout — primary gradient
                 SizedBox(
                   width: double.infinity,
                   child: buildActionButton(
@@ -555,7 +543,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 12),
 
-                // 5) Delete account — red gradient (distinct)
                 SizedBox(
                   width: double.infinity,
                   child: buildActionButton(

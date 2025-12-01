@@ -1,13 +1,15 @@
 // lib/screens/exams_screen.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'hall_allotments_demo.dart'; // <-- new demo screen (same folder)
+
+import 'hall_allotments_demo.dart';
 import 'package:syllabuddy/theme.dart';
+import 'package:syllabuddy/widgets/app_header.dart';
+import 'package:syllabuddy/styles/app_styles.dart';
 
 class ExamsScreen extends StatelessWidget {
   const ExamsScreen({Key? key}) : super(key: key);
 
-  // Robust extractor: accepts Timestamp, int (ms since epoch), ISO string, or Map-like timestamp.
   DateTime? _toDateTime(dynamic maybe) {
     if (maybe == null) return null;
     try {
@@ -29,7 +31,6 @@ class ExamsScreen extends StatelessWidget {
     return null;
   }
 
-  // Compute earliest and latest dates from subjects list (defensive).
   Map<String, DateTime?> _computeRange(List<dynamic>? subjects) {
     final dates = <DateTime>[];
     if (subjects != null) {
@@ -115,31 +116,66 @@ class ExamsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
-    final primaryGrad = _primaryGradient(primary);
-
     final now = DateTime.now();
     final stream = FirebaseFirestore.instance.collection('exam-sets').orderBy('createdAt', descending: true).snapshots();
 
+    // FAB styled to match AppPrimaryButton (gradient + rounded + ripple)
+    Widget _buildPrimaryFab() {
+      final grad = AppStyles.primaryGradient(context);
+      final borderRadius = BorderRadius.circular(AppStyles.radiusLarge);
+
+      return Container(
+        // make the container slightly larger than default FAB for a modern extended look
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(gradient: grad, borderRadius: borderRadius, boxShadow: [AppStyles.shadow(context)]),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: borderRadius,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HallAllotmentsDemo())),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                SizedBox(width: 8),
+                Icon(Icons.view_list, color: Colors.white, size: 18),
+                SizedBox(width: 10),
+                Text('Halls', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                SizedBox(width: 8),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
+      // place the custom-decorated widget in the floatingActionButton slot
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 6, right: 6),
+        child: _buildPrimaryFab(),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: Column(
         children: [
-          // header with gradient
-          ClipRRect(
-            borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(gradient: primaryGrad),
-              padding: const EdgeInsets.only(top: 60, bottom: 28),
-              child: Center(
-                child: Text(
-                  'Exams',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
+          const AppHeader(title: 'Exams', showBack: true),
+
+          // small section heading + optional subtle description
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 18, 24, 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Exam schedules',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Theme.of(context).textTheme.bodyMedium?.color),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
 
-          // Content area
+          // content stream
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: stream,
@@ -199,38 +235,8 @@ class ExamsScreen extends StatelessWidget {
                   return (aStart ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(bStart ?? DateTime.fromMillisecondsSinceEpoch(0));
                 });
 
-                // Build contents similar to CoursesScreen: padded scrollable column with cards
                 final content = <Widget>[];
                 content.add(const SizedBox(height: 8));
-
-                // ----- Add "View Hall Allotments" demo button at top of content -----
-                content.add(Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
-                    children: [
-                      Expanded(child: Text('Exam schedules', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Theme.of(context).textTheme.bodyMedium?.color))),
-                      const SizedBox(width: 8),
-                      Container(
-                        decoration: BoxDecoration(gradient: primaryGrad, borderRadius: BorderRadius.circular(10)),
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.view_list),
-                          label: const Text('View Hall Allotments'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          onPressed: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const HallAllotmentsDemo()));
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ));
-                content.add(const SizedBox(height: 12));
 
                 if (ongoing.isNotEmpty) {
                   content.add(Padding(
@@ -331,13 +337,7 @@ class ExamsScreen extends StatelessWidget {
 
                 content.add(const SizedBox(height: 40));
 
-                return ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    const SizedBox(height: 16),
-                    ...content,
-                  ],
-                );
+                return ListView(padding: EdgeInsets.zero, children: [const SizedBox(height: 8), ...content]);
               },
             ),
           ),
@@ -347,7 +347,6 @@ class ExamsScreen extends StatelessWidget {
   }
 }
 
-/// Card used for each exam; styled similarly to _CourseCard from degree screen.
 class _ExamCard extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -380,13 +379,12 @@ class _ExamCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: surface,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Theme.of(context).brightness == Brightness.dark ? Colors.black54 : Colors.black12, blurRadius: 8, offset: const Offset(0, 6))],
+          borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+          boxShadow: [AppStyles.shadow(context)],
         ),
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
         child: Row(
           children: [
-            // small calendar icon circle
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(color: primary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),

@@ -1,10 +1,11 @@
 // lib/screens/hall_allotments_demo.dart
 import 'package:flutter/material.dart';
+import 'package:syllabuddy/widgets/app_header.dart';
+import 'package:syllabuddy/styles/app_styles.dart';
 
 class HallAllotmentsDemo extends StatelessWidget {
   const HallAllotmentsDemo({Key? key}) : super(key: key);
 
-  // Sample data (10 rows).
   List<Map<String, dynamic>> get sampleRows => [
         {
           'sno': 1,
@@ -80,23 +81,8 @@ class HallAllotmentsDemo extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
-    final grad = _primaryGradient(primary);
-
-    return ClipRRect(
-      borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(gradient: grad),
-        padding: const EdgeInsets.only(top: 60, bottom: 28),
-        child: Center(
-          child: Text(
-            'Hall Allotments',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
-          ),
-        ),
-      ),
-    );
+    // Use shared header for consistent look
+    return const AppHeader(title: 'Hall Allotments', showBack: true);
   }
 
   TableRow _buildHeaderRow(BuildContext context) {
@@ -145,7 +131,6 @@ class HallAllotmentsDemo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // bottom padding so content doesn't butt against nav bars (or bottom insets)
     final double bottomInset = MediaQuery.of(context).padding.bottom + 12.0;
 
     return Scaffold(
@@ -153,29 +138,26 @@ class HallAllotmentsDemo extends StatelessWidget {
         top: false,
         child: Column(
           children: [
-            // Header (gradient)
             _buildHeader(context),
 
             const SizedBox(height: 12),
 
-            // Expandable content area (table) - scrolls vertically and horizontally
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Card(
-                  elevation: 2,
-                  color: Theme.of(context).cardColor,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+                    boxShadow: [AppStyles.shadow(context)],
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(8),
-                    // Vertical scroll that contains a horizontally scrollable table.
                     child: SingleChildScrollView(
-                      // vertical scroll
                       child: SingleChildScrollView(
-                        // horizontal scroll for wide table
                         scrollDirection: Axis.horizontal,
                         child: ConstrainedBox(
-                          // ensure table takes at least the viewport width so horizontal scroll behaves well
-                          constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 24),
+                          constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 32),
                           child: Padding(
                             padding: EdgeInsets.only(bottom: bottomInset),
                             child: Table(
