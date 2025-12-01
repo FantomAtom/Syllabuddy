@@ -55,13 +55,19 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/logo.png"          # or assets/logo_cropped.png
+
+  # REQUIRED for this package version — point to your foreground PNG
+  image_path: "assets/logo-transparent.png"
+
+  # Adaptive icon
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/logo-transparent.png"
 
 flutter_native_splash:
   android: true
   ios: false
   color: "#FFFFFF"                       # or your preferred splash bg
-  image: assets/logo-transparent.png
+  image: assets/logo.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
