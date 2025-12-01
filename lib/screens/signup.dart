@@ -1,10 +1,9 @@
 // lib/screens/signup.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:syllabuddy/screens/main_shell.dart';
+import 'package:syllabuddy/screens/VerifyEmailPage.dart';
 import 'login.dart';
-import 'package:syllabuddy/services/user_service.dart';
+import 'package:syllabuddy/services/pending_signup_service.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({Key? key}) : super(key: key);
@@ -25,7 +24,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _passwordCtrl = TextEditingController();
   final _studentIdCtrl = TextEditingController();
 
-  String _role = 'student';
+  String _role = "student";
 
   @override
   void dispose() {
@@ -41,8 +40,9 @@ class _SignUpPageState extends State<SignUpPage> {
     if (!mounted) return;
     setState(() => _errorMessage = msg);
     if (msg != null && msg.isNotEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(msg)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
     }
   }
 
@@ -54,8 +54,6 @@ class _SignUpPageState extends State<SignUpPage> {
         return 'That email address is invalid.';
       case 'weak-password':
         return 'Password is too weak (min 6 characters).';
-      case 'operation-not-allowed':
-        return 'This operation is not allowed. Contact support.';
       case 'network-request-failed':
         return 'Network error. Check your connection.';
       default:
@@ -75,69 +73,71 @@ class _SignUpPageState extends State<SignUpPage> {
     final lastName = _lastNameCtrl.text.trim();
     final studentId =
         _studentIdCtrl.text.trim().isEmpty ? null : _studentIdCtrl.text.trim();
-
-    final roleToWrite = _role; // student or staff
+    final roleToWrite = _role;
 
     try {
-      // create auth user
+      // Save pending signup locally BEFORE creating auth user.
+      // This ensures we can finish profile creation after verification,
+      // even if the app is closed and reopened.
+      await PendingSignupService.savePending(
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        studentId: studentId,
+        role: roleToWrite,
+      );
+
+      // Create Firebase Auth user only (do NOT write to Firestore here).
       final userCred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
 
-      // get the user (might be immediately available)
       var user = userCred.user ?? FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Authentication did not return a user.');
 
-      // force token refresh / reload to avoid the auth -> firestore race
+      if (user == null) throw Exception("No user returned from Firebase");
+
+      // Reload to ensure fresh token/state
       await user.reload();
       user = FirebaseAuth.instance.currentUser;
       await user?.getIdToken(true);
 
-      final uid = user!.uid;
-
-      // Use UserService so we always write to the correct collection/shape
-      if (roleToWrite == 'student') {
-        await UserService.createStudent(uid, {
-          'firstName': firstName,
-          'lastName': lastName,
-          'email': email,
-          'studentId': studentId,
-        });
-      } else {
-        await UserService.createStaff(uid, {
-          'firstName': firstName,
-          'lastName': lastName,
-          'email': email,
-          // status default 'unverified' will be applied by createStaff if omitted
-        });
+      // Send verification email (best-effort)
+      try {
+        if (user != null && !user.emailVerified) {
+          await user.sendEmailVerification();
+        }
+      } catch (e) {
+        debugPrint("Verification email failed: $e");
+        // not fatal; user can press resend from verify screen
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Account created: ${user.email}')));
 
-      // navigate into MainShell
-      Navigator.pushAndRemoveUntil(
+      // Navigate to verify page WITH the pending info (so user can resend / continue)
+      Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const MainShell()),
-        (_) => false,
+        MaterialPageRoute(
+          builder: (_) => VerifyEmailPage(
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            studentId: studentId,
+            role: roleToWrite,
+          ),
+        ),
       );
     } on FirebaseAuthException catch (e) {
+      // If auth creation failed, remove pending saved earlier to avoid staleness.
+      try {
+        await PendingSignupService.clearPending();
+      } catch (_) {}
       _setError(_mapSignUpException(e));
     } catch (e, st) {
-      debugPrint('Unexpected error during signup: $e');
-      debugPrint('$st');
-      _setError('Unexpected error: $e');
-
-      // rollback created auth user if exists
+      debugPrint("Unexpected error: $e");
+      debugPrint("$st");
+      _setError("Unexpected error: $e");
       try {
-        final cur = FirebaseAuth.instance.currentUser;
-        if (cur != null) {
-          await cur.delete();
-          debugPrint('Rolled back created auth user due to error.');
-        }
-      } catch (rbErr) {
-        debugPrint('Rollback failed: $rbErr');
-      }
+        await PendingSignupService.clearPending();
+      } catch (_) {}
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -147,15 +147,13 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
 
-    // small, responsive image size: proportional to screen but clamped
     double imgSize = MediaQuery.of(context).size.width * 0.28;
-    if (imgSize < 80) imgSize = 80;
-    if (imgSize > 160) imgSize = 160;
+    imgSize = imgSize.clamp(80, 160);
 
     return Scaffold(
       body: Column(
         children: [
-          // Header (gradient + text left, icon right)
+          // HEADER
           ClipRRect(
             borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(40),
@@ -163,73 +161,54 @@ class _SignUpPageState extends State<SignUpPage> {
             ),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.only(top: 80, bottom: 40, left: 20, right: 20),
+              padding:
+                  const EdgeInsets.only(top: 80, bottom: 40, left: 20, right: 20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
                     Theme.of(context).primaryColorDark,
-                    Theme.of(context).primaryColor,
+                    primary,
                   ],
-                  stops: const [0.0, 0.8],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
                 ),
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Text block on the left
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
                       children: const [
                         Text(
-                          'Create an Account!',
+                          "Create an Account!",
                           style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Sign up',
+                          "Sign up",
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
+                              fontSize: 20,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
                   ),
-
-                  // Icon on the right with circular border + shadow (matching login)
                   Container(
                     width: imgSize,
                     height: imgSize,
-                    margin: const EdgeInsets.only(left: 16),
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.18),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                      // fallback color while image loads
-                      color: const Color.fromARGB(255, 121, 194, 150),
-                    ),
+                        color: const Color(0xFF79C296),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withOpacity(0.18),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4))
+                        ]),
                     child: ClipOval(
-                      child: Padding(
-                        padding: const EdgeInsets.all(2),
-                        child: Image.asset(
-                          'assets/logo-transparent.png',
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+                      child: Image.asset("assets/logo-transparent.png"),
                     ),
                   ),
                 ],
@@ -237,135 +216,105 @@ class _SignUpPageState extends State<SignUpPage> {
             ),
           ),
 
-          if (_errorMessage != null && _errorMessage!.isNotEmpty)
+          if (_errorMessage != null)
             Container(
+              color: Colors.red.withOpacity(0.08),
+              padding: const EdgeInsets.all(12),
               width: double.infinity,
-              color: Colors.red.withOpacity(0.06),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: Text(_errorMessage!,
-                  style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(
+                    color: Colors.red, fontWeight: FontWeight.w600),
+              ),
             ),
 
+          // FORM
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              padding: const EdgeInsets.all(24),
               child: Form(
                 key: _formKey,
                 child: Column(
                   children: [
+                    // Names
                     Row(
                       children: [
                         Expanded(
                           child: TextFormField(
                             controller: _firstNameCtrl,
-                            decoration: InputDecoration(
-                                hintText: 'First Name',
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                                border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none)),
+                            decoration: _input("First Name"),
                             validator: (v) =>
-                                (v == null || v.isEmpty) ? 'Enter first name' : null,
+                                v!.isEmpty ? "Enter first name" : null,
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: TextFormField(
                             controller: _lastNameCtrl,
-                            decoration: InputDecoration(
-                                hintText: 'Last Name',
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                                border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none)),
+                            decoration: _input("Last Name"),
                             validator: (v) =>
-                                (v == null || v.isEmpty) ? 'Enter last name' : null,
+                                v!.isEmpty ? "Enter last name" : null,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
 
+                    // Email
                     TextFormField(
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                          hintText: 'Email',
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          prefixIcon: Icon(Icons.email, color: primary),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none)),
+                      decoration: _input("Email", icon: Icons.email),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Enter email';
+                        if (v!.isEmpty) return "Enter email";
                         if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
-                          return 'Enter a valid email';
+                          return "Enter a valid email";
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
 
+                    // Password
                     TextFormField(
                       controller: _passwordCtrl,
                       obscureText: _obscurePassword,
-                      decoration: InputDecoration(
-                          hintText: 'Password (min 6 chars)',
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          prefixIcon: Icon(Icons.lock, color: primary),
-                          suffixIcon: IconButton(
-                              icon: Icon(_obscurePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
-                              onPressed: () => setState(() =>
-                                  _obscurePassword = !_obscurePassword)),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none)),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Enter password';
-                        if (v.length < 6) {
-                          return 'Password must be at least 6 characters';
-                        }
-                        return null;
-                      },
+                      decoration: _input("Password (min 6 chars)",
+                          icon: Icons.lock,
+                          suffix: IconButton(
+                            icon: Icon(_obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                            onPressed: () =>
+                                setState(() => _obscurePassword = !_obscurePassword),
+                          )),
+                      validator: (v) =>
+                          v!.length < 6 ? "Password too short" : null,
                     ),
                     const SizedBox(height: 16),
 
+                    // Student ID
                     TextFormField(
                       controller: _studentIdCtrl,
-                      decoration: InputDecoration(
-                          hintText: 'Student ID (optional)',
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          prefixIcon: Icon(Icons.perm_identity, color: primary),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none)),
+                      decoration: _input("Student ID (optional)",
+                          icon: Icons.perm_identity),
                     ),
                     const SizedBox(height: 16),
 
+                    // Role dropdown
                     DropdownButtonFormField<String>(
                       value: _role,
                       items: const [
-                        DropdownMenuItem(value: 'student', child: Text('Student')),
-                        DropdownMenuItem(value: 'staff', child: Text('Staff')),
+                        DropdownMenuItem(
+                            value: "student", child: Text("Student")),
+                        DropdownMenuItem(value: "staff", child: Text("Staff")),
                       ],
-                      onChanged: (v) => setState(() => _role = v ?? 'student'),
-                      decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none)),
+                      onChanged: (v) => setState(() => _role = v!),
+                      decoration: _input("Role"),
                     ),
                     const SizedBox(height: 32),
 
-                    // Gradient button (matches login)
+                    // SIGN UP BUTTON
                     SizedBox(
                       width: double.infinity,
                       child: Container(
@@ -373,35 +322,23 @@ class _SignUpPageState extends State<SignUpPage> {
                           gradient: LinearGradient(
                             colors: [
                               Theme.of(context).primaryColorDark,
-                              Theme.of(context).primaryColor,
+                              primary
                             ],
-                            stops: const [0.0, 0.5],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _signUp,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
-                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.transparent,
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
                           ),
                           child: _isLoading
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Create Account'),
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2)
+                              : const Text("Create Account",
+                                  style: TextStyle(color: Colors.white)),
                         ),
                       ),
                     ),
@@ -413,23 +350,38 @@ class _SignUpPageState extends State<SignUpPage> {
                       children: [
                         const Text("Already have an account? "),
                         GestureDetector(
-                            onTap: () => Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (_) => const LoginPage())),
-                            child: Text('Login',
-                                style: TextStyle(
-                                    color: primary,
-                                    fontWeight: FontWeight.bold))),
+                          onTap: () => Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const LoginPage()),
+                          ),
+                          child: Text("Login",
+                              style: TextStyle(
+                                  color: primary, fontWeight: FontWeight.bold)),
+                        ),
                       ],
-                    ),
-                    const SizedBox(height: 12),
+                    )
                   ],
                 ),
               ),
             ),
-          ),
+          )
         ],
       ),
+    );
+  }
+
+  InputDecoration _input(String hint, {IconData? icon, Widget? suffix}) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: Colors.grey[100],
+      prefixIcon: icon != null
+          ? Icon(icon, color: Theme.of(context).primaryColor)
+          : null,
+      suffixIcon: suffix,
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
     );
   }
 }

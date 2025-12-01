@@ -1,3 +1,4 @@
+// lib/screens/login.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,6 +6,11 @@ import 'package:syllabuddy/screens/main_shell.dart';
 import 'signup.dart';
 import 'degree_screen.dart'; // CoursesScreen
 import 'package:shared_preferences/shared_preferences.dart';
+
+// new imports
+import 'VerifyEmailPage.dart';
+import 'package:syllabuddy/services/pending_signup_service.dart';
+import 'package:syllabuddy/services/user_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -69,25 +75,133 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordCtrl.text.trim(),
       );
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
-
       final current = credential.user;
       if (current == null) {
         throw FirebaseAuthException(code: 'user-not-found', message: 'Sign-in failed.');
       }
 
+      // reload to ensure we have latest emailVerified state
+      await current.reload();
+      final refreshed = FirebaseAuth.instance.currentUser;
+
+      // If email not verified -> redirect to verify flow (do not go to MainShell)
+      if (refreshed != null && !refreshed.emailVerified) {
+        // try to use pending signup data if available
+        final pending = await PendingSignupService.readPending();
+
+        if (!mounted) return;
+        if (pending != null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => VerifyEmailPage(
+                email: pending['email'] as String,
+                // VerifyEmailPage constructor expects these args
+                firstName: pending['firstName'] as String,
+                lastName: pending['lastName'] as String,
+                studentId: pending['studentId'] as String?,
+                role: pending['role'] as String,
+              ),
+            ),
+          );
+        } else {
+          // fallback: pass email and empty names/role
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => VerifyEmailPage(
+                email: refreshed.email ?? '',
+                firstName: '',
+                lastName: '',
+                studentId: null,
+                role: 'student',
+              ),
+            ),
+          );
+        }
+
+        // show a small snack to explain
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please verify your email before continuing.')));
+        }
+        return;
+      }
+
+      // At this point user is signed in and emailVerified == true.
+      // Ensure Firestore profile exists; if not, try to create from pending signup.
       String role = 'student';
+      final uid = current.uid;
+      final db = FirebaseFirestore.instance;
+
       try {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(current.uid).get();
-        if (doc.exists) {
-          final data = doc.data();
+        final userDocSnap = await db.collection('users').doc(uid).get();
+        final staffDocSnap = await db.collection('staff_emails').doc(uid).get();
+
+        if (userDocSnap.exists) {
+          final data = userDocSnap.data();
           final fetchedRole = data?['role'];
           if (fetchedRole is String && fetchedRole.isNotEmpty) role = fetchedRole;
+        } else if (staffDocSnap.exists) {
+          final data = staffDocSnap.data();
+          final fetchedRole = data?['role'];
+          if (fetchedRole is String && fetchedRole.isNotEmpty) role = fetchedRole;
+        } else {
+          // No profile in Firestore — attempt to create from local pending signup if present
+          final pending = await PendingSignupService.readPending();
+          if (pending != null) {
+            final pendingRole = (pending['role'] as String?) ?? 'student';
+            if (pendingRole == 'student') {
+              try {
+                await UserService.createStudent(uid, {
+                  'firstName': pending['firstName'] as String? ?? '',
+                  'lastName': pending['lastName'] as String? ?? '',
+                  'email': pending['email'] as String? ?? current.email,
+                  'studentId': pending['studentId'] as String?,
+                });
+                role = 'student';
+                // clear pending on success
+                await PendingSignupService.clearPending();
+              } catch (e) {
+                debugPrint('Failed to create student doc from pending: $e');
+                // fallback: we'll create minimal doc below
+              }
+            } else {
+              try {
+                await UserService.createStaff(uid, {
+                  'firstName': pending['firstName'] as String? ?? '',
+                  'lastName': pending['lastName'] as String? ?? '',
+                  'email': pending['email'] as String? ?? current.email,
+                });
+                role = 'staff';
+                await PendingSignupService.clearPending();
+              } catch (e) {
+                debugPrint('Failed to create staff doc from pending: $e');
+              }
+            }
+          } else {
+            // No pending data — create a minimal student profile so the app has something.
+            try {
+              await UserService.createStudent(uid, {
+                'firstName': '',
+                'lastName': '',
+                'email': current.email ?? '',
+                'studentId': null,
+              });
+              role = 'student';
+            } catch (e) {
+              debugPrint('Failed to create fallback minimal user doc: $e');
+              // Non-fatal — the app can still continue, but profile fields may be missing.
+            }
+          }
         }
       } catch (fsErr) {
-        debugPrint('Firestore read failed: $fsErr — continuing as student.');
+        debugPrint('Firestore read/create failed: $fsErr — continuing to MainShell.');
+        // non-fatal
       }
+
+      // Only now set persistent "isLoggedIn" preference because we are allowing entry.
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -223,15 +337,9 @@ class _LoginPageState extends State<LoginPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          'Welcome back!',
-                          style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
+                        Text('Welcome back!', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold, color: Colors.white)),
                         const SizedBox(height: 8),
-                        Text(
-                          'Login',
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: Colors.white),
-                        ),
+                        Text('Login', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: Colors.white)),
                       ],
                     ),
                   ),
@@ -244,12 +352,7 @@ class _LoginPageState extends State<LoginPage> {
                       boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 8, offset: const Offset(0, 4))],
                       color: const Color.fromARGB(255, 121, 194, 150),
                     ),
-                    child: ClipOval(
-                      child: Padding(
-                        padding: const EdgeInsets.all(2),
-                        child: Image.asset('assets/logo-transparent.png', fit: BoxFit.cover),
-                      ),
-                    ),
+                    child: ClipOval(child: Padding(padding: const EdgeInsets.all(2), child: Image.asset('assets/logo-transparent.png', fit: BoxFit.cover))),
                   ),
                 ],
               ),
@@ -298,10 +401,7 @@ class _LoginPageState extends State<LoginPage> {
                         filled: true,
                         fillColor: Colors.grey[100],
                         prefixIcon: Icon(Icons.lock, color: primary),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.grey[600]),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                        ),
+                        suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.grey[600]), onPressed: () => setState(() => _obscurePassword = !_obscurePassword)),
                         contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       ),
@@ -315,9 +415,7 @@ class _LoginPageState extends State<LoginPage> {
                       child: TextButton(
                         onPressed: _isSendingReset ? null : _sendPasswordResetEmail,
                         style: TextButton.styleFrom(foregroundColor: primary),
-                        child: _isSendingReset
-                            ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Forgot Password?'),
+                        child: _isSendingReset ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Forgot Password?'),
                       ),
                     ),
                     const SizedBox(height: 10),

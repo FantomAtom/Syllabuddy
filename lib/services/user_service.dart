@@ -113,4 +113,13 @@ class UserService {
     // This will fail with requires-recent-login if user hasn't recently authenticated
     await user.delete();
   }
+
+    /// Returns true if either users/{uid} or staff_emails/{uid} exists
+  static Future<bool> profileExists(String uid) async {
+    final userDoc = await _db.collection('users').doc(uid).get();
+    if (userDoc.exists) return true;
+    final staffDoc = await _db.collection('staff_emails').doc(uid).get();
+    return staffDoc.exists;
+  }
+
 }

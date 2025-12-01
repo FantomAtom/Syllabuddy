@@ -60,9 +60,9 @@ class _CoursesScreenState extends State<CoursesScreen> {
       }
 
       final data = await UserService.getCurrentUserData();
-      final last = data?['lastName'] ?? '';
+      final first = data?['firstName'] ?? '';
       setState(() {
-        _userName = "$last".trim().isEmpty ? "User" : "$last".trim();
+        _userName = "$first".trim().isEmpty ? "User" : "$first".trim();
         _loadingUser = false;
       });
     } catch (e) {

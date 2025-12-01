@@ -9,6 +9,10 @@ import 'profile_screen.dart';
 import 'admin_screen.dart';
 import 'exams_screen.dart';
 
+// new imports for verify redirect
+import 'package:syllabuddy/screens/VerifyEmailPage.dart';
+import 'package:syllabuddy/services/pending_signup_service.dart';
+
 class MainShell extends StatefulWidget {
   final int initialTab;
   const MainShell({Key? key, this.initialTab = 0}) : super(key: key);
@@ -36,6 +40,55 @@ class _MainShellState extends State<MainShell> {
   Future<void> _fetchRoleOnce() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+
+    // ensure latest auth state
+    try {
+      await user.reload();
+    } catch (e) {
+      debugPrint('User reload failed: $e');
+    }
+
+    // If user not verified — redirect them to VerifyEmailPage and stop initialization
+    if (!(FirebaseAuth.instance.currentUser?.emailVerified ?? false)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+
+        final pending = await PendingSignupService.readPending();
+        if (pending != null) {
+          Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => VerifyEmailPage(
+                // using saved pending values
+                email: pending['email'] as String,
+                firstName: pending['firstName'] as String,
+                lastName: pending['lastName'] as String,
+                studentId: pending['studentId'] as String?,
+                role: pending['role'] as String,
+              ),
+            ),
+            (route) => false,
+          );
+        } else {
+          // fallback: pass at least email and default strings so constructor receives required args
+          final email = FirebaseAuth.instance.currentUser?.email ?? '';
+          Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => VerifyEmailPage(
+                email: email,
+                firstName: '',
+                lastName: '',
+                studentId: null,
+                role: 'student',
+              ),
+            ),
+            (route) => false,
+          );
+        }
+      });
+
+      // stop further initialization here — VerifyEmailPage will be shown
+      return;
+    }
 
     final uid = user.uid;
     final db = FirebaseFirestore.instance;
