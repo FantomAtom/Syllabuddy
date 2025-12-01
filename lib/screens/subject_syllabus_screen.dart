@@ -7,6 +7,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 // FIXED: use proper import for BookmarksScreen
 import 'package:syllabuddy/screens/bookmarks_screen.dart';
 
+// new unit widget + shared header
+import 'package:syllabuddy/widgets/unit_expansion.dart';
+import 'package:syllabuddy/widgets/app_header.dart';
+
 class SubjectSyllabusScreen extends StatefulWidget {
   final String courseLevel;
   final String department;
@@ -35,7 +39,7 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
   bool _bookmarked = false;
   final _db = FirebaseFirestore.instance;
 
-  // scale animation controller
+  // scale animation controller for bookmark
   late AnimationController _animCtrl;
   late Animation<double> _scaleAnim;
 
@@ -250,77 +254,18 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
     return Scaffold(
       body: Column(
         children: [
-          // Top banner
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(40),
-              bottomRight: Radius.circular(40),
-            ),
-            child: Container(
-              width: double.infinity,
-              color: primary,
-              padding: const EdgeInsets.only(top: 80, bottom: 40),
-              child: Stack(
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                  Center(
-                    child: Text(
-                      widget.subjectName != null && widget.subjectName!.trim().isNotEmpty
-                          ? widget.subjectName!
-                          : widget.subjectId,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white.withOpacity(0.95),
-                      ),
-                    ),
-                  ),
-
-                  // Bookmark icon
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 4.0),
-                      child: _loadingBookmark
-                          ? const SizedBox(
-                              height: 44,
-                              width: 44,
-                              child: Center(
-                                child: SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                ),
-                              ),
-                            )
-                          : ScaleTransition(
-                              scale: _scaleAnim,
-                              child: IconButton(
-                                icon: Icon(
-                                  _bookmarked ? Icons.bookmark : Icons.bookmark_outline,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                                onPressed: _toggleBookmark,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          // Use shared header for consistent look & feel
+          AppHeader(
+            title: widget.subjectName != null && widget.subjectName!.trim().isNotEmpty
+                ? widget.subjectName!
+                : widget.subjectId,
+            showBack: true,
           ),
 
           // Units list below
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 future: subjectDocRef.get(),
                 builder: (context, subjectSnapshot) {
@@ -364,45 +309,21 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
 
                       return ListView.separated(
                         itemCount: docs.length,
-                        padding: const EdgeInsets.only(bottom: 16),
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        padding: const EdgeInsets.only(bottom: 16, top: 4),
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final doc = docs[index];
                           final data = doc.data();
                           final content = (data != null && data['content'] is String) ? (data['content'] as String) : '';
                           final title = _buildUnitTitle(doc.id, data);
 
-                          return Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            child: ExpansionTile(
-                              title: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold))),
-                                  IconButton(
-                                    icon: const Icon(Icons.copy, size: 20),
-                                    tooltip: 'Copy content',
-                                    onPressed: content.isNotEmpty
-                                        ? () {
-                                            Clipboard.setData(ClipboardData(text: content));
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Copied to clipboard!')),
-                                            );
-                                          }
-                                        : null,
-                                  ),
-                                ],
-                              ),
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: content.isNotEmpty
-                                      ? Text(content, style: const TextStyle(fontSize: 15, height: 1.5))
-                                      : Text('No content.', style: TextStyle(color: Colors.grey.shade600)),
-                                ),
-                              ],
-                            ),
+                          return UnitExpansion(
+                            title: title,
+                            content: content,
+                            initiallyExpanded: false,
+                            onCopied: () {
+                              // optional hook for analytics or extra UI feedback
+                            },
                           );
                         },
                       );

@@ -1,8 +1,9 @@
-// lib/screens/department_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../widgets/option_card.dart';
-import 'year_selection_screen.dart';
+import 'package:syllabuddy/widgets/app_header.dart';
+import 'package:syllabuddy/widgets/app_option_card.dart';
+import 'package:syllabuddy/theme.dart';
+import 'package:syllabuddy/screens/year_selection_screen.dart';
 
 class DepartmentScreen extends StatelessWidget {
   final String courseLevel;
@@ -36,49 +37,8 @@ class DepartmentScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          // Top curved banner with back button — thinner + two-tone gradient
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(40),
-              bottomRight: Radius.circular(40),
-            ),
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [primaryDarkVariant, primary],
-                  stops: const [0.0, 0.5],
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                ),
-              ),
-              padding: const EdgeInsets.only(top: 60, bottom: 28),
-              child: Stack(
-                children: [
-                  Align(
-                    alignment: Alignment.center,
-                    child: Text(
-                      'Select Department',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white.withOpacity(0.95),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 8,
-                    top: 0,
-                    bottom: 0,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // Reuse AppHeader so header and back behaviour / style stays consistent
+          AppHeader(title: 'Select Department', showBack: true),
 
           // Department options (first ensure the parent doc exists)
           Expanded(
@@ -178,6 +138,7 @@ class DepartmentScreen extends StatelessWidget {
                         );
                       }
 
+                      // Use the same AppOptionCard used in degrees_screen so UI and behavior stay consistent
                       return ListView.separated(
                         itemCount: docs.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 16),
@@ -186,8 +147,9 @@ class DepartmentScreen extends StatelessWidget {
                           final data = doc.data();
                           final displayName = (data['displayName'] as String?) ?? doc.id;
 
-                          return OptionCard(
+                          return AppOptionCard(
                             title: displayName,
+                            icon: Icons.domain, // neutral icon; AppOptionCard will lay it out consistently
                             onTap: () {
                               Navigator.push(
                                 context,

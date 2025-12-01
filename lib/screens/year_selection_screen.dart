@@ -1,8 +1,10 @@
 // lib/screens/year_selection_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../widgets/option_card.dart';
-import 'semester_screen.dart';
+
+import 'package:syllabuddy/widgets/app_header.dart';
+import 'package:syllabuddy/widgets/app_option_card.dart';
+import 'package:syllabuddy/screens/semester_screen.dart';
 
 class YearSelectionScreen extends StatelessWidget {
   final String courseLevel;
@@ -46,10 +48,12 @@ class YearSelectionScreen extends StatelessWidget {
     return docId;
   }
 
+  Color _textColorOrFallback(BuildContext context, Color fallback) {
+    return Theme.of(context).textTheme.bodyMedium?.color ?? fallback;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
-
     // Reference to the department document
     final deptDocRef = FirebaseFirestore.instance
         .collection('degree-level')
@@ -60,42 +64,8 @@ class YearSelectionScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          // Top curved banner with back button
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(40),
-              bottomRight: Radius.circular(40),
-            ),
-            child: Container(
-              width: double.infinity,
-              color: primary,
-              padding: const EdgeInsets.only(top: 80, bottom: 40),
-              child: Stack(
-                children: [
-                  Align(
-                    alignment: Alignment.center,
-                    child: Text(
-                      'Select Year',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 16,
-                    top: 0,
-                    bottom: 0,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // Reuse the centralized header so it matches Degree/Department screens
+          const AppHeader(title: 'Select Year', showBack: true),
 
           // Year options (check department exists then stream years)
           Expanded(
@@ -116,7 +86,7 @@ class YearSelectionScreen extends StatelessWidget {
                             child: Text(
                               'Error checking department:\n${parentSnapshot.error}',
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 16, color: Colors.grey.shade800),
+                              style: TextStyle(fontSize: 16, color: _textColorOrFallback(context, Colors.grey.shade800)),
                             ),
                           ),
                         ],
@@ -135,7 +105,7 @@ class YearSelectionScreen extends StatelessWidget {
                         'No department found at /degree-level/$courseLevel/department/$department.\n'
                         'Double-check the department ID or Firestore structure.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                        style: TextStyle(fontSize: 16, color: _textColorOrFallback(context, Colors.grey.shade800)),
                       ),
                     );
                   }
@@ -158,7 +128,7 @@ class YearSelectionScreen extends StatelessWidget {
                                 child: Text(
                                   'Error loading years:\n${snapshot.error}',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 16, color: Colors.grey.shade800),
+                                  style: TextStyle(fontSize: 16, color: _textColorOrFallback(context, Colors.grey.shade800)),
                                 ),
                               ),
                             ],
@@ -177,7 +147,7 @@ class YearSelectionScreen extends StatelessWidget {
                           child: Text(
                             'No years found for department "$department".',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                            style: TextStyle(fontSize: 16, color: _textColorOrFallback(context, Colors.grey.shade800)),
                           ),
                         );
                       }
@@ -198,8 +168,9 @@ class YearSelectionScreen extends StatelessWidget {
                           final data = doc.data();
                           final title = _yearDisplayFromDoc(doc.id, data);
 
-                          return OptionCard(
+                          return AppOptionCard(
                             title: title,
+                            icon: Icons.calendar_month, // <-- change this to any icon you prefer
                             onTap: () {
                               Navigator.push(
                                 context,

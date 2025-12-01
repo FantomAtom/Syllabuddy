@@ -1,8 +1,10 @@
 // lib/screens/semester_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../widgets/option_card.dart';
-import 'subject_screen.dart';
+
+import 'package:syllabuddy/widgets/app_header.dart';
+import 'package:syllabuddy/widgets/app_option_card.dart';
+import 'package:syllabuddy/screens/subject_screen.dart';
 
 class SemesterScreen extends StatelessWidget {
   final String courseLevel;
@@ -45,10 +47,12 @@ class SemesterScreen extends StatelessWidget {
     return docId;
   }
 
+  Color _textColorOrFallback(BuildContext context, Color fallback) {
+    return Theme.of(context).textTheme.bodyMedium?.color ?? fallback;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
-
     final yearDocRef = FirebaseFirestore.instance
         .collection('degree-level')
         .doc(courseLevel)
@@ -60,42 +64,8 @@ class SemesterScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          // Top curved banner with back button
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(40),
-              bottomRight: Radius.circular(40),
-            ),
-            child: Container(
-              width: double.infinity,
-              color: primary,
-              padding: const EdgeInsets.only(top: 80, bottom: 40),
-              child: Stack(
-                children: [
-                  Align(
-                    alignment: Alignment.center,
-                    child: Text(
-                      'Select Semester',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 16,
-                    top: 0,
-                    bottom: 0,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // Reuse centralized header for consistency
+          const AppHeader(title: 'Select Semester', showBack: true),
 
           // Semester options (validate year exists, then stream semester subcollection)
           Expanded(
@@ -116,7 +86,7 @@ class SemesterScreen extends StatelessWidget {
                             child: Text(
                               'Error checking year:\n${parentSnapshot.error}',
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 16, color: Colors.grey.shade800),
+                              style: TextStyle(fontSize: 16, color: _textColorOrFallback(context, Colors.grey.shade800)),
                             ),
                           ),
                         ],
@@ -135,7 +105,7 @@ class SemesterScreen extends StatelessWidget {
                         'No year found at /degree-level/$courseLevel/department/$department/year/$year.\n'
                         'Double-check the path or department/year IDs.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                        style: TextStyle(fontSize: 16, color: _textColorOrFallback(context, Colors.grey.shade800)),
                       ),
                     );
                   }
@@ -157,7 +127,7 @@ class SemesterScreen extends StatelessWidget {
                                 child: Text(
                                   'Error loading semesters:\n${snapshot.error}',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 16, color: Colors.grey.shade800),
+                                  style: TextStyle(fontSize: 16, color: _textColorOrFallback(context, Colors.grey.shade800)),
                                 ),
                               ),
                             ],
@@ -176,7 +146,7 @@ class SemesterScreen extends StatelessWidget {
                           child: Text(
                             'No semesters found for year "$year".',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                            style: TextStyle(fontSize: 16, color: _textColorOrFallback(context, Colors.grey.shade800)),
                           ),
                         );
                       }
@@ -197,8 +167,9 @@ class SemesterScreen extends StatelessWidget {
                           final data = doc.data();
                           final title = _semesterDisplayFromDoc(doc.id, data);
 
-                          return OptionCard(
+                          return AppOptionCard(
                             title: title,
+                            icon: Icons.view_week, // change this to any icon you prefer
                             onTap: () {
                               Navigator.push(
                                 context,

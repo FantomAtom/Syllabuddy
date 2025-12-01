@@ -1,7 +1,10 @@
 // lib/screens/subject_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'subject_syllabus_screen.dart';
+
+import 'package:syllabuddy/widgets/app_header.dart';
+import 'package:syllabuddy/widgets/app_option_card.dart';
+import 'package:syllabuddy/screens/subject_syllabus_screen.dart';
 
 class SubjectScreen extends StatelessWidget {
   final String courseLevel;
@@ -35,19 +38,24 @@ class SubjectScreen extends StatelessWidget {
   }
 
   String _formatSemesterTitle(String sem) {
-  switch (sem) {
-    case '1': return '1st Semester';
-    case '2': return '2nd Semester';
-    case '3': return '3rd Semester';
-    default: return '${sem}th Semester';
+    switch (sem) {
+      case '1':
+        return '1st Semester';
+      case '2':
+        return '2nd Semester';
+      case '3':
+        return '3rd Semester';
+      default:
+        return '${sem}th Semester';
+    }
   }
-}
 
+  Color _textColorOrFallback(BuildContext context, Color fallback) {
+    return Theme.of(context).textTheme.bodyMedium?.color ?? fallback;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
-
     // Reference to the semester document (to validate existence) and its subjects subcollection
     final semesterDocRef = FirebaseFirestore.instance
         .collection('degree-level')
@@ -64,44 +72,13 @@ class SubjectScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          // Header with back button
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(40),
-              bottomRight: Radius.circular(40),
-            ),
-            child: Container(
-              width: double.infinity,
-              color: primary,
-              padding: const EdgeInsets.only(top: 80, bottom: 40),
-              child: Stack(
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                  Center(
-                    child: Text(
-                      '${_formatSemesterTitle(semester)} Subjects',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white.withOpacity(0.95),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // Reuse centralized header for consistent look & back behavior
+          AppHeader(title: '${_formatSemesterTitle(semester)} Subjects', showBack: true),
 
           // Subject list: validate semester exists (FutureBuilder) then stream subjects
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 future: semesterDocRef.get(),
                 builder: (context, semSnapshot) {
@@ -117,7 +94,7 @@ class SubjectScreen extends StatelessWidget {
                             child: Text(
                               'Error checking semester:\n${semSnapshot.error}',
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 16, color: Colors.grey.shade800),
+                              style: TextStyle(fontSize: 16, color: _textColorOrFallback(context, Colors.grey.shade800)),
                             ),
                           ),
                         ],
@@ -136,7 +113,7 @@ class SubjectScreen extends StatelessWidget {
                         'No semester found at /degree-level/$courseLevel/department/$department/year/$year/semester/$semester.\n'
                         'Please double-check the path or IDs.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                        style: TextStyle(fontSize: 16, color: _textColorOrFallback(context, Colors.grey.shade700)),
                       ),
                     );
                   }
@@ -156,7 +133,7 @@ class SubjectScreen extends StatelessWidget {
                                 child: Text(
                                   'Error loading subjects:\n${snapshot.error}',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 16, color: Colors.grey.shade800),
+                                  style: TextStyle(fontSize: 16, color: _textColorOrFallback(context, Colors.grey.shade800)),
                                 ),
                               ),
                             ],
@@ -175,7 +152,7 @@ class SubjectScreen extends StatelessWidget {
                           child: Text(
                             'No subjects found for this semester.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                            style: TextStyle(fontSize: 16, color: _textColorOrFallback(context, Colors.grey.shade700)),
                           ),
                         );
                       }
@@ -196,33 +173,34 @@ class SubjectScreen extends StatelessWidget {
                         itemBuilder: (context, i) {
                           final doc = docs[i];
                           final data = doc.data();
-                          final title = _subjectTitleFromDoc(data, doc.id);
+                          final titleOnly = _subjectTitleFromDoc(data, doc.id);
                           final code = _subjectCodeFromDoc(data);
 
-                          return Card(
-                            child: ListTile(
-                              title: Text(title),
-                              subtitle: code != null ? Text(code) : null,
-                              trailing: Icon(Icons.arrow_forward_ios, color: primary),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => SubjectSyllabusScreen(
-                                      courseLevel: courseLevel,
-                                      department: department,
-                                      year: year,
-                                      semester: semester,
-                                      subjectId: doc.id,        // important: pass the subject document id (e.g. "CS102")
-                                      subjectName: title,       // optional friendly name
-                                    ),
+                          // Combine title and code so AppOptionCard (which accepts a title) shows both.
+                          // Example: "Data Structures • CS201"
+                          final displayTitle = code != null ? '$titleOnly • $code' : titleOnly;
+
+                          return AppOptionCard(
+                            title: displayTitle,
+                            icon: Icons.menu_book, // change to any icon you prefer
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => SubjectSyllabusScreen(
+                                    courseLevel: courseLevel,
+                                    department: department,
+                                    year: year,
+                                    semester: semester,
+                                    subjectId: doc.id, // important: pass the subject document id (e.g. "CS102")
+                                    subjectName: titleOnly, // optional friendly name
                                   ),
-                                );
-                              },
-                            ),
+                                ),
+                              );
+                            },
                           );
                         },
-                        padding: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.only(bottom: 16, top: 8),
                       );
                     },
                   );
