@@ -1,6 +1,13 @@
+// lib/screens/admin_year_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_semester_screen.dart';
+
+// shared app styles & widgets
+import '../styles/app_styles.dart';
+import '../theme.dart';
+import '../widgets/app_primary_button.dart';
+import '../widgets/app_section_title.dart';
 
 class AdminYearList extends StatefulWidget {
   final String degreeId;
@@ -18,6 +25,7 @@ class _AdminYearListState extends State<AdminYearList> {
   Widget build(BuildContext context) {
     final deptDocRef = _db.collection('degree-level').doc(widget.degreeId).collection('department').doc(widget.departmentId);
     final yearsStream = deptDocRef.collection('year').orderBy('value').snapshots();
+    final theme = Theme.of(context);
 
     // Use a StreamBuilder to fetch department displayName for the header
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -30,21 +38,25 @@ class _AdminYearListState extends State<AdminYearList> {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(deptDisplay, style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
-            backgroundColor: Theme.of(context).primaryColor,
-            iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+            title: Text(deptDisplay, style: TextStyle(color: theme.colorScheme.onPrimary)),
+            backgroundColor: theme.primaryColor,
+            iconTheme: IconThemeData(color: theme.colorScheme.onPrimary),
+            elevation: 0,
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: _showCreateYearDialog,
-            child: const Icon(Icons.add),
+            backgroundColor: theme.primaryColor,
+            child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
+            tooltip: 'Create year',
           ),
           body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: yearsStream,
             builder: (context, snap) {
               if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
               if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
-              final docs = snap.data!.docs;
-              if (docs.isEmpty) return const Center(child: Text('No years found'));
+              final docs = snap.data?.docs ?? [];
+              if (docs.isEmpty) return Center(child: Text('No years found', style: TextStyle(color: theme.textTheme.bodySmall?.color)));
+
               return ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: docs.length,
@@ -82,11 +94,13 @@ class _AdminYearListState extends State<AdminYearList> {
     final valueCtrl = TextEditingController();
     final semestersCtrl = TextEditingController(text: '2');
     final formKey = GlobalKey<FormState>();
+    final theme = Theme.of(context);
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Create Year'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Form(
           key: formKey,
           child: Column(
@@ -212,11 +226,12 @@ class _AdminYearListState extends State<AdminYearList> {
 
   Future<void> _showEditYearDialog(DocumentSnapshot<Map<String, dynamic>> doc) async {
     final nameCtrl = TextEditingController(text: doc.data()?['displayName'] ?? 'Year ${doc.id}');
-    
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Edit Year'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: TextField(
           controller: nameCtrl,
           decoration: const InputDecoration(labelText: 'Display Name'),
@@ -246,6 +261,7 @@ class _AdminYearListState extends State<AdminYearList> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Year'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Text('Are you sure you want to delete "${doc.data()?['displayName'] ?? doc.id}"? This will delete all semesters and subjects within this year.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -268,6 +284,7 @@ class _AdminYearListState extends State<AdminYearList> {
   }
 }
 
+/// Themed year card
 class AdminYearCard extends StatelessWidget {
   final String yearId;
   final String displayName;
@@ -288,43 +305,59 @@ class AdminYearCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        boxShadow: [AppStyles.shadow(context)],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        child: Material(
+          color: Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(displayName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text('Year $value', style: TextStyle(color: Colors.grey[600])),
-                    ],
-                  ),
+                Row(
+                  children: [
+                    // left badge
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AppStyles.primaryGradient(context),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 3))],
+                      ),
+                      child: Center(child: Text('$value', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(displayName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: theme.colorScheme.primaryText)),
+                          const SizedBox(height: 4),
+                          Text('Year $value', style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+                        ],
+                      ),
+                    ),
+                    IconButton(onPressed: onEdit, icon: Icon(Icons.edit, color: theme.primaryColor)),
+                    IconButton(onPressed: onDelete, icon: const Icon(Icons.delete, color: Colors.red)),
+                  ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: onEdit,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: onDelete,
-                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: AppPrimaryButton(text: 'Manage Semesters', icon: Icons.calendar_month, onPressed: onManage)),
+                  ],
+                )
               ],
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onManage,
-                icon: const Icon(Icons.calendar_month),
-                label: const Text('Manage Semesters'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

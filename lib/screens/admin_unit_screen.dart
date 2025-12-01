@@ -2,6 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// shared styles & widgets
+import '../styles/app_styles.dart';
+import '../theme.dart';
+import '../widgets/app_primary_button.dart';
+
 class AdminUnitList extends StatefulWidget {
   final String degreeId;
   final String departmentId;
@@ -45,6 +50,8 @@ class _AdminUnitListState extends State<AdminUnitList> {
   @override
   Widget build(BuildContext context) {
     // Stream the subject doc so the title updates if displayName changes
+    final theme = Theme.of(context);
+
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: _subjectDocRef.snapshots(),
       builder: (context, subjectSnap) {
@@ -55,13 +62,16 @@ class _AdminUnitListState extends State<AdminUnitList> {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text('${subjectDisplay} Units', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
-            backgroundColor: Theme.of(context).primaryColor,
-            iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+            title: Text('${subjectDisplay} Units', style: TextStyle(color: theme.colorScheme.onPrimary)),
+            backgroundColor: theme.primaryColor,
+            iconTheme: IconThemeData(color: theme.colorScheme.onPrimary),
+            elevation: 0,
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: _showCreateUnitDialog,
-            child: const Icon(Icons.add),
+            backgroundColor: theme.primaryColor,
+            child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
+            tooltip: 'Create unit',
           ),
           body: FutureBuilder<Query<Map<String, dynamic>>>(
             future: _pickUnitsQuery(),
@@ -90,7 +100,7 @@ class _AdminUnitListState extends State<AdminUnitList> {
                   debugPrint('Units fetched: ${docs.length}');
 
                   if (docs.isEmpty) {
-                    return const Center(child: Text('No units found'));
+                    return Center(child: Text('No units found', style: TextStyle(color: theme.textTheme.bodySmall?.color)));
                   }
 
                   return ListView.separated(
@@ -167,6 +177,7 @@ class _AdminUnitListState extends State<AdminUnitList> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Create Unit'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Form(
           key: formKey,
           child: Column(
@@ -264,6 +275,7 @@ class _AdminUnitListState extends State<AdminUnitList> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Edit Unit'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -324,6 +336,7 @@ class _AdminUnitListState extends State<AdminUnitList> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Unit'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Text('Are you sure you want to delete "${doc.data()?['displayName'] ?? doc.id}"?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -348,6 +361,7 @@ class _AdminUnitListState extends State<AdminUnitList> {
   }
 }
 
+/// Themed unit card
 class AdminUnitCard extends StatelessWidget {
   final String unitId;
   final String displayName;
@@ -370,39 +384,56 @@ class AdminUnitCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(displayName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text('Unit $value', style: TextStyle(color: Colors.grey[600])),
-                      if (hours.isNotEmpty) Text('Hours: $hours', style: TextStyle(color: Colors.grey[600])),
-                      if (description.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(description, style: const TextStyle(fontSize: 14)),
-                      ],
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        boxShadow: [AppStyles.shadow(context)],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // badge
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppStyles.primaryGradient(context),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 3))],
+                ),
+                child: Center(child: Text('$value', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(displayName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: theme.colorScheme.primaryText)),
+                    const SizedBox(height: 4),
+                    Text('Unit $value', style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+                    if (hours.isNotEmpty) Text('Hours: $hours', style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+                    if (description.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(description, style: TextStyle(fontSize: 14, color: theme.textTheme.bodySmall?.color)),
                     ],
-                  ),
+                  ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: onEdit,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: onDelete,
-                ),
-              ],
-            ),
-          ],
+              ),
+              Column(
+                children: [
+                  IconButton(onPressed: onEdit, icon: Icon(Icons.edit, color: theme.primaryColor)),
+                  IconButton(onPressed: onDelete, icon: const Icon(Icons.delete, color: Colors.red)),
+                ],
+              )
+            ],
+          ),
         ),
       ),
     );

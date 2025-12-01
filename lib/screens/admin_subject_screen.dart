@@ -1,6 +1,12 @@
+// lib/screens/admin_subject_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_unit_screen.dart';
+
+// shared styles & widgets
+import '../styles/app_styles.dart';
+import '../theme.dart';
+import '../widgets/app_primary_button.dart';
 
 class AdminSubjectList extends StatefulWidget {
   final String degreeId;
@@ -24,7 +30,8 @@ class _AdminSubjectListState extends State<AdminSubjectList> {
 
   @override
   Widget build(BuildContext context) {
-    final stream = _db.collection('degree-level')
+    final stream = _db
+        .collection('degree-level')
         .doc(widget.degreeId)
         .collection('department')
         .doc(widget.departmentId)
@@ -35,23 +42,29 @@ class _AdminSubjectListState extends State<AdminSubjectList> {
         .collection('subjects')
         .snapshots();
 
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Semester ${widget.semesterId} Subjects', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
-        backgroundColor: Theme.of(context).primaryColor,
-        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+        title: Text('Semester ${widget.semesterId} Subjects', style: TextStyle(color: theme.colorScheme.onPrimary)),
+        backgroundColor: theme.primaryColor,
+        iconTheme: IconThemeData(color: theme.colorScheme.onPrimary),
+        elevation: 0,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateSubjectDialog,
-        child: const Icon(Icons.add),
+        backgroundColor: theme.primaryColor,
+        child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
+        tooltip: 'Create subject',
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: stream,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
           if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
-          final docs = snap.data!.docs;
-          if (docs.isEmpty) return const Center(child: Text('No subjects found'));
+          final docs = snap.data?.docs ?? [];
+          if (docs.isEmpty) return Center(child: Text('No subjects found', style: TextStyle(color: theme.textTheme.bodySmall?.color)));
+
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: docs.length,
@@ -99,6 +112,7 @@ class _AdminSubjectListState extends State<AdminSubjectList> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Create Subject'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Form(
           key: formKey,
           child: Column(
@@ -221,6 +235,7 @@ class _AdminSubjectListState extends State<AdminSubjectList> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Edit Subject'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -270,6 +285,7 @@ class _AdminSubjectListState extends State<AdminSubjectList> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Subject'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Text('Are you sure you want to delete "${doc.data()?['displayName'] ?? doc.id}"? This will delete all units within this subject.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -292,6 +308,7 @@ class _AdminSubjectListState extends State<AdminSubjectList> {
   }
 }
 
+/// Themed subject card
 class AdminSubjectCard extends StatelessWidget {
   final String subjectId;
   final String displayName;
@@ -314,57 +331,63 @@ class AdminSubjectCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        boxShadow: [AppStyles.shadow(context)],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        child: Material(
+          color: Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(displayName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      if (code.isNotEmpty) Text('Code: $code', style: TextStyle(color: Colors.grey[600])),
-                      if (hours.isNotEmpty) Text('Hours: $hours', style: TextStyle(color: Colors.grey[600])),
-                    ],
-                  ),
+                Row(
+                  children: [
+                    // left icon
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AppStyles.primaryGradient(context),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 3))],
+                      ),
+                      child: const Center(child: Icon(Icons.menu_book, color: Colors.white)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(displayName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: theme.colorScheme.primaryText)),
+                          if (code.isNotEmpty) const SizedBox(height: 4),
+                          if (code.isNotEmpty) Text('Code: $code', style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+                          if (hours.isNotEmpty) Text('Hours: $hours', style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+                        ],
+                      ),
+                    ),
+                    IconButton(onPressed: onEdit, icon: Icon(Icons.edit, color: theme.primaryColor)),
+                    IconButton(onPressed: onDelete, icon: const Icon(Icons.delete, color: Colors.red)),
+                  ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: onEdit,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: onDelete,
-                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: AppPrimaryButton(text: 'Manage Units', icon: Icons.menu_book, onPressed: onManage)),
+                  ],
+                )
               ],
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onManage,
-                icon: const Icon(Icons.menu_book),
-                label: const Text('Manage Units'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-

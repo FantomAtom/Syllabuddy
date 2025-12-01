@@ -7,6 +7,12 @@ import 'package:flutter/material.dart';
 import 'admin_department_screen.dart';
 import 'admin_exam_screen.dart';
 
+// reuse app widgets & styles
+import '../styles/app_styles.dart';
+import '../theme.dart';
+import '../widgets/app_section_title.dart';
+import '../widgets/app_primary_button.dart';
+
 /// AdminConsole checks staff_emails/{uid}.status and only shows editing UI
 /// if status == 'verified'. Otherwise shows a friendly locked screen.
 class AdminConsole extends StatefulWidget {
@@ -75,47 +81,93 @@ class _AdminConsoleState extends State<AdminConsole> {
       title: Text(title, style: TextStyle(color: theme.colorScheme.onPrimary)),
       backgroundColor: theme.primaryColor,
       iconTheme: IconThemeData(color: theme.colorScheme.onPrimary),
+      elevation: 0,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    final theme = Theme.of(context);
 
-    if (_error != null) {
+    if (_loading) {
       return Scaffold(
-        appBar: _primaryAppBar(context, 'Admin Console'),
-        body: Center(child: Text('Error: $_error')),
-      );
-    }
-
-    if (!_verified) {
-      return Scaffold(
-        appBar: _primaryAppBar(context, 'Admin Console'),
         body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.lock_outline, size: 64, color: Theme.of(context).primaryColor),
-              const SizedBox(height: 16),
-              Text('Admin Access Pending',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
-              const SizedBox(height: 12),
-              Text(
-                'Your account (${_email ?? "unknown"}) is registered as staff but not verified yet. An administrator must verify your email to enable admin features.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _checkVerification, child: const Text('Refresh Status'))),
-              const SizedBox(height: 8),
-              const Text('If you believe this is an error, contact the system administrator.'),
-            ]),
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation(theme.primaryColor),
           ),
         ),
       );
     }
 
-    // Verified
+    if (_error != null) {
+      return Scaffold(
+        appBar: _primaryAppBar(context, 'Admin Console'),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Text('Error: $_error', textAlign: TextAlign.center),
+          ),
+        ),
+      );
+    }
+
+    if (!_verified) {
+      // Locked state (friendly)
+      return Scaffold(
+        appBar: _primaryAppBar(context, 'Admin Console'),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: AppStyles.primaryGradient(context),
+                    boxShadow: [AppStyles.shadow(context)],
+                  ),
+                  padding: const EdgeInsets.all(18),
+                  child: Icon(Icons.lock_outline, size: 48, color: Colors.white),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Admin Access Pending',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primaryText,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Your account (${_email ?? "unknown"}) is registered as staff but not verified yet. An administrator must verify your email to enable admin features.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: AppPrimaryButton(
+                    text: 'Refresh Status',
+                    onPressed: _checkVerification,
+                    icon: Icons.refresh,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'If you believe this is an error, contact the system administrator.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: theme.textTheme.bodySmall?.color),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Verified -> show admin home
     return Scaffold(
       appBar: _primaryAppBar(context, 'Admin Console'),
       body: const AdminHome(),
@@ -124,115 +176,71 @@ class _AdminConsoleState extends State<AdminConsole> {
 }
 
 /// ---------------------------- Admin Home (degree-level) ----------------------------
-/// This widget is compact: it lists degree-level docs and links to the separate screens
-class AdminHome extends StatefulWidget {
+/// This widget shows only two fixed degree levels: UG and PG
+class AdminHome extends StatelessWidget {
   const AdminHome({Key? key}) : super(key: key);
 
   @override
-  State<AdminHome> createState() => _AdminHomeState();
-}
-
-class _AdminHomeState extends State<AdminHome> {
-  final _db = FirebaseFirestore.instance;
-
-  Future<void> _addDegree(BuildContext context) async {
-    final ctrl = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Create Degree Level'),
-        content: TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Degree id (e.g. UG or PG)')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              if (ctrl.text.trim().isEmpty) return;
-              Navigator.pop(ctx, true);
-            },
-            child: const Text('Create'),
-          )
-        ],
-      ),
-    );
-    if (ok != true) return;
-    final id = ctrl.text.trim();
-    try {
-      await _db.collection('degree-level').doc(id).set({'displayName': id, 'createdAt': FieldValue.serverTimestamp()});
-      ctrl.clear();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Degree created')));
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final stream = _db.collection('degree-level').snapshots();
+    final theme = Theme.of(context);
+    final degrees = const [
+      {'id': 'UG', 'display': 'Undergraduate'},
+      {'id': 'PG', 'display': 'Postgraduate'},
+    ];
 
     return Column(
       children: [
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              const Expanded(child: Text('Manage degree levels (e.g. UG, PG)', style: TextStyle(fontWeight: FontWeight.bold))),
-              IconButton(onPressed: () => _addDegree(context), icon: const Icon(Icons.add)),
+              Expanded(child: AppSectionTitle(text: 'Manage degree levels')),
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Expanded(
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: stream,
-            builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-              if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
-              final docs = snap.data!.docs;
-              if (docs.isEmpty) return const Center(child: Text('No degree levels found'));
-
-              return ListView.separated(
-                padding: const EdgeInsets.all(12),
-                itemCount: docs.length + 1, // +1 for the exam schedules card at bottom
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, i) {
-                  // last item is the exam schedules card
-                  if (i == docs.length) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 0),
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Exam schedules', style: TextStyle(fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminExamScreen())),
-                                  icon: const Icon(Icons.calendar_month),
-                                  label: const Text('Manage Exam Sets'),
-                                ),
-                              ),
-                            ],
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: degrees.length + 1,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, i) {
+              if (i == degrees.length) {
+                // exam schedules card
+                return Card(
+                  color: theme.cardColor,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppStyles.radiusMedium)),
+                  elevation: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Exam schedules', style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primaryText)),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: AppPrimaryButton(
+                            text: 'Manage Exam Sets',
+                            icon: Icons.calendar_month,
+                            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminExamScreen())),
                           ),
                         ),
-                      ),
-                    );
-                  }
+                      ],
+                    ),
+                  ),
+                );
+              }
 
+              final deg = degrees[i];
+              final id = deg['id']!;
+              final display = deg['display']!;
 
-                  final d = docs[i];
-                  final id = d.id;
-                  final display = (d.data()['displayName'] ?? id).toString();
-                  return AdminDegreeCard(
-                    degreeId: id,
-                    displayName: display,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminDepartmentList(degreeId: id))),
-                  );
-                },
+              return _DegreeCard(
+                degreeId: id,
+                displayName: display,
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminDepartmentList(degreeId: id))),
               );
             },
           ),
@@ -242,40 +250,57 @@ class _AdminHomeState extends State<AdminHome> {
   }
 }
 
-/// Clickable degree card component
-class AdminDegreeCard extends StatelessWidget {
+class _DegreeCard extends StatelessWidget {
   final String degreeId;
   final String displayName;
   final VoidCallback onTap;
 
-  const AdminDegreeCard({
-    Key? key,
-    required this.degreeId,
-    required this.displayName,
-    required this.onTap,
-  }) : super(key: key);
+  const _DegreeCard({Key? key, required this.degreeId, required this.displayName, required this.onTap}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final isPg = degreeId.toUpperCase().contains('PG');
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(isPg ? Icons.workspace_premium : Icons.school, size: 32, color: Theme.of(context).primaryColor),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(displayName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text('ID: $degreeId', style: TextStyle(color: Colors.grey[600])),
-                ]),
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        boxShadow: [AppStyles.shadow(context)],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            splashFactory: InkRipple.splashFactory,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 14.0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: AppStyles.primaryGradient(context),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 3))],
+                    ),
+                    child: Icon(isPg ? Icons.workspace_premium : Icons.school, color: Colors.white, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(displayName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: theme.colorScheme.primaryText)),
+                      const SizedBox(height: 4),
+                      Text('ID: $degreeId', style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+                    ]),
+                  ),
+                  Icon(Icons.arrow_forward_ios, color: theme.textTheme.bodySmall?.color, size: 18),
+                ],
               ),
-              const Icon(Icons.arrow_forward_ios, color: Colors.grey),
-            ],
+            ),
           ),
         ),
       ),

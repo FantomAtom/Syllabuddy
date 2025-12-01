@@ -1,8 +1,13 @@
-// lib/screens/admin_department_list.dart
+// lib/screens/admin_department_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_year_screen.dart';
-import 'package:syllabuddy/theme.dart';
+
+// app shared widgets / styles
+import '../widgets/app_primary_button.dart';
+import '../widgets/app_section_title.dart';
+import '../styles/app_styles.dart';
+import '../theme.dart';
 
 class AdminDepartmentList extends StatefulWidget {
   final String degreeId;
@@ -15,103 +20,54 @@ class AdminDepartmentList extends StatefulWidget {
 class _AdminDepartmentListState extends State<AdminDepartmentList> {
   final _db = FirebaseFirestore.instance;
 
-  /// Utility: derive a darker variant from [base] by reducing lightness (HSL).
-  Color _deriveDarker(Color base, double reduceBy) {
-    final hsl = HSLColor.fromColor(base);
-    final newLightness = (hsl.lightness - reduceBy).clamp(0.0, 1.0);
-    return hsl.withLightness(newLightness).toColor();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final primary = theme.primaryColor;
-    final primaryDarkVariant = _deriveDarker(primary, 0.18);
-    final primaryText = theme.colorScheme.primaryText;
-
     final stream = _db.collection('degree-level').doc(widget.degreeId).collection('department').snapshots();
+    final theme = Theme.of(context);
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text('${widget.degreeId} Departments', style: TextStyle(color: theme.colorScheme.onPrimary)),
+        backgroundColor: theme.primaryColor,
+        iconTheme: IconThemeData(color: theme.colorScheme.onPrimary),
+        elevation: 0,
+      ),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: stream,
+        builder: (context, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
+          final docs = snap.data?.docs ?? [];
+          if (docs.isEmpty) return Center(child: Text('No departments found', style: TextStyle(color: theme.textTheme.bodySmall?.color)));
+
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, i) {
+              final d = docs[i];
+              final id = d.id;
+              final display = (d.data()['displayName'] ?? id).toString();
+              return AdminDepartmentCard(
+                departmentId: id,
+                displayName: display,
+                onEdit: () => _showEditDepartmentDialog(d),
+                onDelete: () => _deleteDepartment(d),
+                onManage: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AdminYearList(degreeId: widget.degreeId, departmentId: id)),
+                ),
+              );
+            },
+          );
+        },
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateDepartmentDialog,
-        child: const Icon(Icons.add),
-        backgroundColor: primary,
-      ),
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            // Gradient header (thinner) — matches Degrees screen styling
-            ClipRRect(
-              borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [primaryDarkVariant, primary],
-                    stops: const [0.0, 0.5],
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                  ),
-                ),
-                padding: const EdgeInsets.only(top: 60, bottom: 28),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Departments',
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      widget.degreeId,
-                      style: TextStyle(fontSize: 14, color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Body: stream -> list
-            Expanded(
-              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: stream,
-                builder: (context, snap) {
-                  if (snap.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snap.hasError) {
-                    return Center(child: Text('Error: ${snap.error}'));
-                  }
-                  final docs = snap.data!.docs;
-                  if (docs.isEmpty) return const Center(child: Text('No departments found'));
-                  return ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: docs.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, i) {
-                      final d = docs[i];
-                      final id = d.id;
-                      final display = (d.data()['displayName'] ?? id).toString();
-                      return AdminDepartmentCard(
-                        departmentId: id,
-                        displayName: display,
-                        primary: primary,
-                        primaryDarkVariant: primaryDarkVariant,
-                        onEdit: () => _showEditDepartmentDialog(d),
-                        onDelete: () => _deleteDepartment(d),
-                        onManage: () => Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => AdminYearList(degreeId: widget.degreeId, departmentId: id)
-                        )),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+        backgroundColor: theme.primaryColor,
+        child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
       ),
     );
   }
@@ -126,6 +82,7 @@ class _AdminDepartmentListState extends State<AdminDepartmentList> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Create Department'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Form(
           key: formKey,
           child: Column(
@@ -182,6 +139,7 @@ class _AdminDepartmentListState extends State<AdminDepartmentList> {
     }
   }
 
+  /// Creates exactly years * semestersPerYear new semester docs starting after the current max.
   Future<void> _createDepartmentWithStructure(Map<String, dynamic> config) async {
     final name = config['name'] as String;
     final years = config['years'] as int;
@@ -269,6 +227,7 @@ class _AdminDepartmentListState extends State<AdminDepartmentList> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Edit Department'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: TextField(
           controller: nameCtrl,
           decoration: const InputDecoration(labelText: 'Department Name'),
@@ -298,7 +257,9 @@ class _AdminDepartmentListState extends State<AdminDepartmentList> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Department'),
-        content: Text('Are you sure you want to delete "${doc.data()?['displayName'] ?? doc.id}"? This will delete all years, semesters, and subjects within this department.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Text(
+            'Are you sure you want to delete "${doc.data()?['displayName'] ?? doc.id}"? This will delete all years, semesters, and subjects within this department.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(
@@ -320,15 +281,13 @@ class _AdminDepartmentListState extends State<AdminDepartmentList> {
   }
 }
 
-/// Card widget with gradient background and actions
+/// The department card — themed & consistent with Admin UI
 class AdminDepartmentCard extends StatelessWidget {
   final String departmentId;
   final String displayName;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onManage;
-  final Color primary;
-  final Color primaryDarkVariant;
 
   const AdminDepartmentCard({
     Key? key,
@@ -337,86 +296,81 @@ class AdminDepartmentCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onManage,
-    required this.primary,
-    required this.primaryDarkVariant,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [primaryDarkVariant, primary],
-          stops: const [0.0, 0.5],
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.45 : 0.10), blurRadius: 8, offset: const Offset(0, 4))],
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        boxShadow: [AppStyles.shadow(context)],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onManage,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(displayName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                          const SizedBox(height: 6),
-                          Text('ID: $departmentId', style: const TextStyle(color: Colors.white70)),
-                        ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            splashFactory: InkRipple.splashFactory,
+            onTap: onManage,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      // left avatar/icon
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: AppStyles.primaryGradient(context),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 3))],
+                        ),
+                        child: Icon(Icons.apartment, color: Colors.white, size: 22),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.white),
-                      onPressed: onEdit,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.white),
-                      onPressed: onDelete,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [primaryDarkVariant, primary],
-                        stops: const [0.0, 0.5],
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(displayName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: theme.colorScheme.primaryText)),
+                            const SizedBox(height: 4),
+                            Text('ID: $departmentId', style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+                          ],
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: ElevatedButton.icon(
-                      onPressed: onManage,
-                      icon: const Icon(Icons.school),
-                      label: const Text('Manage Years'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      // actions
+                      IconButton(
+                        onPressed: onEdit,
+                        icon: Icon(Icons.edit, color: theme.primaryColor),
+                        tooltip: 'Edit',
                       ),
-                    ),
+                      IconButton(
+                        onPressed: onDelete,
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        tooltip: 'Delete',
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppPrimaryButton(
+                          text: 'Manage Years',
+                          icon: Icons.school,
+                          onPressed: onManage,
+                        ),
+                      ),
+                    ],
+                  )
+                ],
+              ),
             ),
           ),
         ),

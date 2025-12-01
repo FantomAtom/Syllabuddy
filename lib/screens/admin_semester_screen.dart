@@ -1,6 +1,12 @@
+// lib/screens/admin_semester_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_subject_screen.dart';
+
+// shared styles & widgets
+import '../styles/app_styles.dart';
+import '../theme.dart';
+import '../widgets/app_primary_button.dart';
 
 class AdminSemesterList extends StatefulWidget {
   final String degreeId;
@@ -17,7 +23,8 @@ class _AdminSemesterListState extends State<AdminSemesterList> {
 
   @override
   Widget build(BuildContext context) {
-    final stream = _db.collection('degree-level')
+    final stream = _db
+        .collection('degree-level')
         .doc(widget.degreeId)
         .collection('department')
         .doc(widget.departmentId)
@@ -26,24 +33,29 @@ class _AdminSemesterListState extends State<AdminSemesterList> {
         .collection('semester')
         .orderBy('value')
         .snapshots();
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Year ${widget.yearId} Semesters', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
-        backgroundColor: Theme.of(context).primaryColor,
-        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+        title: Text('Year ${widget.yearId} Semesters', style: TextStyle(color: theme.colorScheme.onPrimary)),
+        backgroundColor: theme.primaryColor,
+        iconTheme: IconThemeData(color: theme.colorScheme.onPrimary),
+        elevation: 0,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateSemesterDialog,
-        child: const Icon(Icons.add),
+        backgroundColor: theme.primaryColor,
+        child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
+        tooltip: 'Create semester',
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: stream,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
           if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
-          final docs = snap.data!.docs;
-          if (docs.isEmpty) return const Center(child: Text('No semesters found'));
+          final docs = snap.data?.docs ?? [];
+          if (docs.isEmpty) return Center(child: Text('No semesters found', style: TextStyle(color: theme.textTheme.bodySmall?.color)));
+
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: docs.length,
@@ -59,14 +71,17 @@ class _AdminSemesterListState extends State<AdminSemesterList> {
                 value: value,
                 onEdit: () => _showEditSemesterDialog(d),
                 onDelete: () => _deleteSemester(d),
-                onManage: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => AdminSubjectList(
-                    degreeId: widget.degreeId,
-                    departmentId: widget.departmentId,
-                    yearId: widget.yearId,
-                    semesterId: id,
-                  )
-                )),
+                onManage: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AdminSubjectList(
+                      degreeId: widget.degreeId,
+                      departmentId: widget.departmentId,
+                      yearId: widget.yearId,
+                      semesterId: id,
+                    ),
+                  ),
+                ),
               );
             },
           );
@@ -84,6 +99,7 @@ class _AdminSemesterListState extends State<AdminSemesterList> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Create Semester'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Form(
           key: formKey,
           child: Column(
@@ -134,7 +150,8 @@ class _AdminSemesterListState extends State<AdminSemesterList> {
     final value = config['value'] as int;
 
     try {
-      final semRef = _db.collection('degree-level')
+      final semRef = _db
+          .collection('degree-level')
           .doc(widget.degreeId)
           .collection('department')
           .doc(widget.departmentId)
@@ -157,11 +174,12 @@ class _AdminSemesterListState extends State<AdminSemesterList> {
 
   Future<void> _showEditSemesterDialog(DocumentSnapshot<Map<String, dynamic>> doc) async {
     final nameCtrl = TextEditingController(text: doc.data()?['displayName'] ?? 'Semester ${doc.id}');
-    
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Edit Semester'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: TextField(
           controller: nameCtrl,
           decoration: const InputDecoration(labelText: 'Display Name'),
@@ -191,6 +209,7 @@ class _AdminSemesterListState extends State<AdminSemesterList> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Semester'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Text('Are you sure you want to delete "${doc.data()?['displayName'] ?? doc.id}"? This will delete all subjects within this semester.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -213,6 +232,7 @@ class _AdminSemesterListState extends State<AdminSemesterList> {
   }
 }
 
+/// Themed semester card
 class AdminSemesterCard extends StatelessWidget {
   final String semesterId;
   final String displayName;
@@ -233,47 +253,62 @@ class AdminSemesterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        boxShadow: [AppStyles.shadow(context)],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        child: Material(
+          color: Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(displayName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text('Semester $value', style: TextStyle(color: Colors.grey[600])),
-                    ],
-                  ),
+                Row(
+                  children: [
+                    // left badge
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AppStyles.primaryGradient(context),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 3))],
+                      ),
+                      child: Center(child: Text('$value', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(displayName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: theme.colorScheme.primaryText)),
+                          const SizedBox(height: 4),
+                          Text('Semester $value', style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+                        ],
+                      ),
+                    ),
+                    IconButton(onPressed: onEdit, icon: Icon(Icons.edit, color: theme.primaryColor)),
+                    IconButton(onPressed: onDelete, icon: const Icon(Icons.delete, color: Colors.red)),
+                  ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: onEdit,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: onDelete,
-                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: AppPrimaryButton(text: 'Manage Subjects', icon: Icons.book, onPressed: onManage)),
+                  ],
+                )
               ],
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onManage,
-                icon: const Icon(Icons.book),
-                label: const Text('Manage Subjects'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
-
-
