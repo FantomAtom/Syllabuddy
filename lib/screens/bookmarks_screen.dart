@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:syllabuddy/screens/subject_syllabus_screen.dart';
+import 'package:syllabuddy/theme.dart';
+import 'package:syllabuddy/widgets/app_header.dart';
+import 'package:syllabuddy/styles/app_styles.dart';
 
-/// BookmarksScreen extracted from profile_screen.dart.
-/// Uses the same header style as Profile (rounded bottom, primary color).
 class BookmarksScreen extends StatefulWidget {
   const BookmarksScreen({Key? key}) : super(key: key);
 
@@ -183,69 +184,112 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
+  Widget _buildBookmarkTile(BuildContext context, Map<String, dynamic> r) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bg = theme.cardColor;
+    final contentColor = theme.colorScheme.primaryText;
+    final subtitleColor = theme.textTheme.bodyMedium?.color?.withOpacity(0.7);
 
-    return Scaffold(
-      body: Column(
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
-            child: Container(
-              width: double.infinity,
-              color: primary,
-              padding: const EdgeInsets.only(top: 80, bottom: 24),
-              child: Stack(
+    final deptLabel = (r['department'] ?? '').toString().toUpperCase();
+    final yearLabel = (r['year'] ?? '').toString();
+    final semLabel = (r['semester'] ?? '').toString();
+
+    final subtitle = (deptLabel.isNotEmpty || yearLabel.isNotEmpty || semLabel.isNotEmpty)
+        ? '$deptLabel • Year $yearLabel • Sem $semLabel'
+        : '';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        boxShadow: [AppStyles.shadow(context)],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _openSubject(r),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              child: Row(
                 children: [
-                  // Back button on the left
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.of(context).pop(),
+                  Icon(Icons.bookmark, size: 34, color: theme.primaryColor),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          r['title'] ?? '',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: contentColor,
+                          ),
+                        ),
+                        if (subtitle.isNotEmpty) const SizedBox(height: 6),
+                        if (subtitle.isNotEmpty)
+                          Text(
+                            subtitle,
+                            style: TextStyle(fontSize: 13, color: subtitleColor),
+                          ),
+                      ],
                     ),
                   ),
-
-                  // Title centered
-                  Center(
-                    child: Text(
-                      'Bookmarks',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
-                    ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    color: Colors.redAccent,
+                    onPressed: () => _removeBookmark(r['path'] as String),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 20),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          AppHeader(title: 'Bookmarks', showBack: true),
+
+          const SizedBox(height: 16),
+
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _resolved.isEmpty
-                    ? const Center(child: Text('No bookmarks yet'))
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _resolved.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (context, i) {
-                          final r = _resolved[i];
-                          return Card(
-                            child: ListTile(
-                              title: Text(r['title'] ?? ''),
-                                subtitle: Text(
-                                  "${r['department'].toString().toUpperCase()} • Year ${r['year']} • Sem ${r['semester']}",
-                                  style: TextStyle(color: Colors.grey.shade700),
-                                ),
-                                trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                onPressed: () => _removeBookmark(r['path'] as String),
-                              ),
-                              onTap: () => _openSubject(r),
-                            ),
-                          );
-                        },
-                      ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _resolved.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No bookmarks yet',
+                            style: TextStyle(fontSize: 16, color: Theme.of(context).textTheme.bodyMedium?.color),
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _loadBookmarks,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.only(top: 8, bottom: 20),
+                            itemCount: _resolved.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 6),
+                            itemBuilder: (context, i) {
+                              final r = _resolved[i];
+                              return _buildBookmarkTile(context, r);
+                            },
+                          ),
+                        ),
+            ),
           ),
         ],
       ),

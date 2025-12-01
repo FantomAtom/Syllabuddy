@@ -23,7 +23,7 @@ class AppHeader extends StatelessWidget {
       ),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.only(top: 60, bottom: 28),
+        padding: const EdgeInsets.only(top: 45, bottom: 30),
         decoration: BoxDecoration(
           gradient: AppStyles.primaryGradient(context),
         ),
@@ -31,7 +31,7 @@ class AppHeader extends StatelessWidget {
           children: [
             if (showBack)
               Positioned(
-                left: 8,
+                left: 10,
                 top: 0,
                 bottom: 0,
                 child: IconButton(
