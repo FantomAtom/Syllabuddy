@@ -1,14 +1,17 @@
+// lib/widgets/app_header.dart
 import 'package:flutter/material.dart';
 import '../styles/app_styles.dart';
 
 class AppHeader extends StatelessWidget {
   final String title;
   final bool showBack;
+  final List<Widget>? actions; // NEW: optional trailing action widgets
 
   const AppHeader({
     super.key,
     required this.title,
     this.showBack = true,
+    this.actions,
   });
 
   @override
@@ -36,6 +39,8 @@ class AppHeader extends StatelessWidget {
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
+
+            // Center title
             Center(
               child: Text(
                 title,
@@ -46,6 +51,18 @@ class AppHeader extends StatelessWidget {
                 ),
               ),
             ),
+
+            // RIGHT-SIDE actions (optional)
+            if (actions != null && actions!.isNotEmpty)
+              Positioned(
+                right: 8,
+                top: 0,
+                bottom: 0,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: actions!,
+                ),
+              ),
           ],
         ),
       ),

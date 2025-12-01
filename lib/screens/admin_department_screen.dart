@@ -1,6 +1,8 @@
+// lib/screens/admin_department_list.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_year_screen.dart';
+import 'package:syllabuddy/theme.dart';
 
 class AdminDepartmentList extends StatefulWidget {
   final String degreeId;
@@ -13,46 +15,103 @@ class AdminDepartmentList extends StatefulWidget {
 class _AdminDepartmentListState extends State<AdminDepartmentList> {
   final _db = FirebaseFirestore.instance;
 
+  /// Utility: derive a darker variant from [base] by reducing lightness (HSL).
+  Color _deriveDarker(Color base, double reduceBy) {
+    final hsl = HSLColor.fromColor(base);
+    final newLightness = (hsl.lightness - reduceBy).clamp(0.0, 1.0);
+    return hsl.withLightness(newLightness).toColor();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primary = theme.primaryColor;
+    final primaryDarkVariant = _deriveDarker(primary, 0.18);
+    final primaryText = theme.colorScheme.primaryText;
+
     final stream = _db.collection('degree-level').doc(widget.degreeId).collection('department').snapshots();
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.degreeId} Departments', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
-        backgroundColor: Theme.of(context).primaryColor,
-        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateDepartmentDialog,
         child: const Icon(Icons.add),
+        backgroundColor: primary,
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: stream,
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
-          final docs = snap.data!.docs;
-          if (docs.isEmpty) return const Center(child: Text('No departments found'));
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, i) {
-              final d = docs[i];
-              final id = d.id;
-              final display = (d.data()['displayName'] ?? id).toString();
-              return AdminDepartmentCard(
-                departmentId: id,
-                displayName: display,
-                onEdit: () => _showEditDepartmentDialog(d),
-                onDelete: () => _deleteDepartment(d),
-                onManage: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => AdminYearList(degreeId: widget.degreeId, departmentId: id)
-                )),
-              );
-            },
-          );
-        },
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            // Gradient header (thinner) — matches Degrees screen styling
+            ClipRRect(
+              borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [primaryDarkVariant, primary],
+                    stops: const [0.0, 0.5],
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                  ),
+                ),
+                padding: const EdgeInsets.only(top: 60, bottom: 28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Departments',
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      widget.degreeId,
+                      style: TextStyle(fontSize: 14, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Body: stream -> list
+            Expanded(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: stream,
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snap.hasError) {
+                    return Center(child: Text('Error: ${snap.error}'));
+                  }
+                  final docs = snap.data!.docs;
+                  if (docs.isEmpty) return const Center(child: Text('No departments found'));
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: docs.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, i) {
+                      final d = docs[i];
+                      final id = d.id;
+                      final display = (d.data()['displayName'] ?? id).toString();
+                      return AdminDepartmentCard(
+                        departmentId: id,
+                        displayName: display,
+                        primary: primary,
+                        primaryDarkVariant: primaryDarkVariant,
+                        onEdit: () => _showEditDepartmentDialog(d),
+                        onDelete: () => _deleteDepartment(d),
+                        onManage: () => Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => AdminYearList(degreeId: widget.degreeId, departmentId: id)
+                        )),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -122,8 +181,7 @@ class _AdminDepartmentListState extends State<AdminDepartmentList> {
       await _createDepartmentWithStructure(result);
     }
   }
-  
-  /// Creates exactly years * semestersPerYear new semester docs starting after the current max.
+
   Future<void> _createDepartmentWithStructure(Map<String, dynamic> config) async {
     final name = config['name'] as String;
     final years = config['years'] as int;
@@ -206,7 +264,7 @@ class _AdminDepartmentListState extends State<AdminDepartmentList> {
 
   Future<void> _showEditDepartmentDialog(DocumentSnapshot<Map<String, dynamic>> doc) async {
     final nameCtrl = TextEditingController(text: doc.data()?['displayName'] ?? doc.id);
-    
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -262,12 +320,15 @@ class _AdminDepartmentListState extends State<AdminDepartmentList> {
   }
 }
 
+/// Card widget with gradient background and actions
 class AdminDepartmentCard extends StatelessWidget {
   final String departmentId;
   final String displayName;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onManage;
+  final Color primary;
+  final Color primaryDarkVariant;
 
   const AdminDepartmentCard({
     Key? key,
@@ -276,47 +337,88 @@ class AdminDepartmentCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onManage,
+    required this.primary,
+    required this.primaryDarkVariant,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [primaryDarkVariant, primary],
+          stops: const [0.0, 0.5],
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.45 : 0.10), blurRadius: 8, offset: const Offset(0, 4))],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onManage,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(displayName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text('ID: $departmentId', style: TextStyle(color: Colors.grey[600])),
-                    ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(displayName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                          const SizedBox(height: 6),
+                          Text('ID: $departmentId', style: const TextStyle(color: Colors.white70)),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.white),
+                      onPressed: onEdit,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.white),
+                      onPressed: onDelete,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [primaryDarkVariant, primary],
+                        stops: const [0.0, 0.5],
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ElevatedButton.icon(
+                      onPressed: onManage,
+                      icon: const Icon(Icons.school),
+                      label: const Text('Manage Years'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: onEdit,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: onDelete,
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onManage,
-                icon: const Icon(Icons.school),
-                label: const Text('Manage Years'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

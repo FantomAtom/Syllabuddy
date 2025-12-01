@@ -260,6 +260,35 @@ class _SubjectSyllabusScreenState extends State<SubjectSyllabusScreen>
                 ? widget.subjectName!
                 : widget.subjectId,
             showBack: true,
+            actions: [
+              // keep same sizing as your old header
+              Padding(
+                padding: const EdgeInsets.only(right: 4.0),
+                child: _loadingBookmark
+                    ? const SizedBox(
+                        height: 44,
+                        width: 44,
+                        child: Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          ),
+                        ),
+                      )
+                    : ScaleTransition(
+                        scale: _scaleAnim, // _scaleAnim is already defined on your state
+                        child: IconButton(
+                          icon: Icon(
+                            _bookmarked ? Icons.bookmark : Icons.bookmark_outline,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                          onPressed: _toggleBookmark,
+                        ),
+                      ),
+              ),
+            ],
           ),
 
           // Units list below
