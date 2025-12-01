@@ -3,7 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import 'admin_edit_exam_set.dart'; // file below
+import 'admin_edit_exam_set.dart'; // editing screen (kept separate)
+
+// shared widgets & styles
+import '../styles/app_styles.dart';
+import '../theme.dart';
+import '../widgets/app_primary_button.dart';
 
 class AdminExamScreen extends StatefulWidget {
   const AdminExamScreen({super.key});
@@ -20,6 +25,7 @@ class _AdminExamScreenState extends State<AdminExamScreen> {
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Delete exam set'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Text('Delete "${doc.data()?['examName'] ?? doc.id}"? This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
@@ -42,32 +48,42 @@ class _AdminExamScreenState extends State<AdminExamScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Manage Exam Schedules', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
-        backgroundColor: Theme.of(context).primaryColor,
-        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
+        title: Text('Manage Exam Schedules', style: TextStyle(color: theme.colorScheme.onPrimary)),
+        backgroundColor: theme.primaryColor,
+        iconTheme: IconThemeData(color: theme.colorScheme.onPrimary),
+        elevation: 0,
       ),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
         child: ListView(
           children: [
-            // create button top
-            ElevatedButton.icon(
-              icon: const Icon(Icons.add),
-              label: const Text('Create Exam Set'),
-              onPressed: () async {
-                final created = await Navigator.push<bool>(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminExamCreateScreen()),
-                );
-                if (created == true && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Exam set created')));
-                }
-              },
+            // create button top - styled to match app
+            Row(
+              children: [
+                Expanded(
+                  child: AppPrimaryButton(
+                    text: 'Create Exam Set',
+                    icon: Icons.add,
+                    onPressed: () async {
+                      final created = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AdminExamCreateScreen()),
+                      );
+                      if (created == true && mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Exam set created')));
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
+
             const SizedBox(height: 20),
-            const Text('Upcoming / Ongoing Exam Sets', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('Upcoming / Ongoing Exam Sets', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.primaryText)),
             const SizedBox(height: 12),
 
             StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -77,11 +93,19 @@ class _AdminExamScreenState extends State<AdminExamScreen> {
                   return const LinearProgressIndicator();
                 }
                 if (snap.hasError) {
-                  return Text('Error: ${snap.error}', style: TextStyle(color: Theme.of(context).colorScheme.error));
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text('Error: ${snap.error}', style: TextStyle(color: theme.colorScheme.error)),
+                  );
                 }
 
                 final docs = snap.data?.docs ?? [];
-                if (docs.isEmpty) return const Text('No exam sets found.');
+                if (docs.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text('No exam sets found.', style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+                  );
+                }
 
                 return Column(
                   children: docs.map((d) {
@@ -98,10 +122,17 @@ class _AdminExamScreenState extends State<AdminExamScreen> {
                     subtitleParts.add('${subjects.length} subject${subjects.length == 1 ? '' : 's'}');
                     if (createdAt != null) subtitleParts.add('Created ${createdAt.toLocal().toString().split(' ')[0]}');
 
-                    return Card(
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+                        boxShadow: [AppStyles.shadow(context)],
+                      ),
                       child: ListTile(
-                        title: Text(name),
-                        subtitle: Text(subtitleParts.join(' • ')),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        title: Text(name, style: TextStyle(fontWeight: FontWeight.w700, color: theme.colorScheme.primaryText)),
+                        subtitle: Text(subtitleParts.join(' • '), style: TextStyle(color: theme.textTheme.bodySmall?.color)),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -139,7 +170,7 @@ class _AdminExamScreenState extends State<AdminExamScreen> {
 }
 
 /// ---------------------------------------------------------------------------
-/// AdminExamCreateScreen — extracted create form (keeps create isolated)
+/// AdminExamCreateScreen — create form (keeps create isolated)
 /// ---------------------------------------------------------------------------
 class AdminExamCreateScreen extends StatefulWidget {
   const AdminExamCreateScreen({super.key});
@@ -333,7 +364,7 @@ class _AdminExamCreateScreenState extends State<AdminExamCreateScreen> {
 
       if (!mounted) return;
       Navigator.pop(context, true);
-    } catch (e) {
+    } catch (e) { 
       if (!mounted) return;
       setState(() => _error = 'Save failed: $e');
     } finally {
@@ -362,9 +393,14 @@ class _AdminExamCreateScreenState extends State<AdminExamCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Exam Set'),
+        title: Text('Create Exam Set', style: TextStyle(color: theme.colorScheme.onPrimary)),
+        backgroundColor: theme.primaryColor,
+        iconTheme: IconThemeData(color: theme.colorScheme.onPrimary),
+        elevation: 0,
       ),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
@@ -419,18 +455,25 @@ class _AdminExamCreateScreenState extends State<AdminExamCreateScreen> {
               },
             ),
             const SizedBox(height: 18),
-            const Text('Subjects (assign date to include)'),
+            Text('Subjects (assign date to include)', style: TextStyle(fontWeight: FontWeight.w600, color: theme.colorScheme.primaryText)),
             const SizedBox(height: 8),
+
             if (_subjects.isEmpty)
-              const Text('No subjects loaded. Select year & semester to load subjects.')
+              Text('No subjects loaded. Select year & semester to load subjects.', style: TextStyle(color: theme.textTheme.bodySmall?.color))
             else
               ..._subjects.map((s) {
                 final id = s.id;
                 final display = (s.data()?['displayName'] ?? id).toString();
                 final selDate = _selectedSubjects[id];
-                return Card(
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+                    boxShadow: [AppStyles.shadow(context)],
+                  ),
                   child: ListTile(
-                    title: Text(display),
+                    title: Text(display, style: TextStyle(color: theme.colorScheme.primaryText)),
                     subtitle: selDate == null ? const Text('No date assigned') : Text('${selDate.toLocal()}'.split(' ')[0]),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       IconButton(icon: const Icon(Icons.calendar_today), onPressed: () => _pickDateForSubject(id)),
@@ -452,14 +495,14 @@ class _AdminExamCreateScreenState extends State<AdminExamCreateScreen> {
 
             if (_error != null) ...[
               const SizedBox(height: 8),
-              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
             ],
 
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _saving ? null : _saveExamSet,
-              icon: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save),
-              label: Text(_saving ? 'Saving...' : 'Create Exam Set'),
+            AppPrimaryButton(
+              text: _saving ? 'Saving...' : 'Create Exam Set',
+              icon: _saving ? Icons.hourglass_top : Icons.save,
+              onPressed: _saving ? () {} : _saveExamSet,
             ),
           ],
         ),

@@ -3,6 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+// shared widgets & styles
+import '../styles/app_styles.dart';
+import '../theme.dart';
+import '../widgets/app_primary_button.dart';
+
 class AdminEditExamSet extends StatefulWidget {
   final String docId;
   const AdminEditExamSet({super.key, required this.docId});
@@ -66,7 +71,7 @@ class _AdminEditExamSetState extends State<AdminEditExamSet> {
       _selectedYear = (data['yearId'] as String?)?.toString();
       _selectedSem = (data['semesterId'] as String?)?.toString();
 
-      // load dependent collections in order
+      // load dependent collections
       if (_selectedDegree != null) {
         await _loadDepartments();
         if (_selectedDept != null) {
@@ -92,7 +97,7 @@ class _AdminEditExamSetState extends State<AdminEditExamSet> {
         } catch (_) {}
       }
 
-      // if subject docs loaded, ensure map has entries for them (without overwriting saved date)
+      // ensure map contains current subjects
       if (_subjects.isNotEmpty) {
         for (var sd in _subjects) {
           _selectedSubjects.putIfAbsent(sd.id, () => _selectedSubjects[sd.id]);
@@ -153,7 +158,6 @@ class _AdminEditExamSetState extends State<AdminEditExamSet> {
     if (!mounted) return;
     setState(() {
       _subjects = snap.docs;
-      // ensure selected map contains these ids (retain any previously loaded dates)
       for (var s in _subjects) {
         _selectedSubjects.putIfAbsent(s.id, () => _selectedSubjects[s.id]);
       }
@@ -238,6 +242,7 @@ class _AdminEditExamSetState extends State<AdminEditExamSet> {
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Delete exam set'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Text('Delete "$_examName"? This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
@@ -273,12 +278,19 @@ class _AdminEditExamSetState extends State<AdminEditExamSet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Exam Set')),
+      appBar: AppBar(
+        title: Text('Edit Exam Set', style: TextStyle(color: theme.colorScheme.onPrimary)),
+        backgroundColor: theme.primaryColor,
+        iconTheme: IconThemeData(color: theme.colorScheme.onPrimary),
+        elevation: 0,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
         child: ListView(
@@ -333,11 +345,11 @@ class _AdminEditExamSetState extends State<AdminEditExamSet> {
               },
             ),
             const SizedBox(height: 18),
-            const Text('Subjects (assign date to include)'),
+            Text('Subjects (assign date to include)', style: TextStyle(fontWeight: FontWeight.w600, color: theme.colorScheme.primaryText)),
             const SizedBox(height: 8),
 
             if (_subjects.isEmpty && _selectedSubjects.isEmpty)
-              const Text('No subjects loaded for the saved semester. You can still edit subject IDs and dates below.')
+              Text('No subjects loaded for the saved semester. You can still edit subject IDs and dates below.', style: TextStyle(color: theme.textTheme.bodySmall?.color))
             else
               // show subject docs if available, otherwise fallback to keys in map
               ...((_subjects.isNotEmpty)
@@ -345,9 +357,15 @@ class _AdminEditExamSetState extends State<AdminEditExamSet> {
                       final id = s.id;
                       final display = (s.data()?['displayName'] ?? id).toString();
                       final selDate = _selectedSubjects[id];
-                      return Card(
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+                          boxShadow: [AppStyles.shadow(context)],
+                        ),
                         child: ListTile(
-                          title: Text(display),
+                          title: Text(display, style: TextStyle(color: theme.colorScheme.primaryText)),
                           subtitle: selDate == null ? const Text('No date assigned') : Text('${selDate.toLocal()}'.split(' ')[0]),
                           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                             IconButton(icon: const Icon(Icons.calendar_today), onPressed: () => _pickDateForSubject(id)),
@@ -368,9 +386,15 @@ class _AdminEditExamSetState extends State<AdminEditExamSet> {
                     }).toList()
                   : _selectedSubjects.keys.map((id) {
                       final selDate = _selectedSubjects[id];
-                      return Card(
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(AppStyles.radiusMedium),
+                          boxShadow: [AppStyles.shadow(context)],
+                        ),
                         child: ListTile(
-                          title: Text(id),
+                          title: Text(id, style: TextStyle(color: theme.colorScheme.primaryText)),
                           subtitle: selDate == null ? const Text('No date assigned') : Text('${selDate.toLocal()}'.split(' ')[0]),
                           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                             IconButton(
@@ -400,24 +424,32 @@ class _AdminEditExamSetState extends State<AdminEditExamSet> {
 
             if (_error != null) ...[
               const SizedBox(height: 8),
-              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
             ],
 
             const SizedBox(height: 16),
+
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _saving ? null : _saveUpdate,
-                    icon: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save),
-                    label: Text(_saving ? 'Saving...' : 'Update Exam Set'),
+                  child: AppPrimaryButton(
+                    text: _saving ? 'Saving...' : 'Update Exam Set',
+                    icon: _saving ? Icons.hourglass_top : Icons.save,
+                    onPressed: _saving ? () {} : _saveUpdate,
                   ),
                 ),
                 const SizedBox(width: 12),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel'),
+                Material(
+                  color: theme.cardColor,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: InkWell(
+                    onTap: () => Navigator.pop(context, false),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 14.0),
+                      child: Text('Cancel', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 IconButton(
