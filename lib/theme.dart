@@ -135,5 +135,5 @@ extension AppColors on ColorScheme {
 /// Returns a light variant for light theme and a darker variant for dark theme.
 /// Usage: Theme.of(context).logoBackground
 extension AppThemeExtras on ThemeData {
-  Color get logoBackground => brightness == Brightness.dark ? kLogoBgDark : kLogoBgLight;
+  Color get logoBackground => brightness == Brightness.dark ? const Color.fromARGB(255, 14, 76, 48) : kLogoBgLight;
 }
