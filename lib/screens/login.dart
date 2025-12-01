@@ -4,13 +4,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:syllabuddy/screens/main_shell.dart';
 import 'signup.dart';
-import 'degree_screen.dart'; // CoursesScreen
 import 'package:shared_preferences/shared_preferences.dart';
-
-// new imports
+import 'package:syllabuddy/theme.dart';   // REQUIRED for logoBackground
 import 'verify_email_page.dart';
 import 'package:syllabuddy/services/pending_signup_service.dart';
 import 'package:syllabuddy/services/user_service.dart';
+
+// shared widgets / styles
+import 'package:syllabuddy/widgets/app_primary_button.dart';
+import 'package:syllabuddy/styles/app_styles.dart';
+import 'package:syllabuddy/widgets/starting_screens_header.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -86,7 +89,6 @@ class _LoginPageState extends State<LoginPage> {
 
       // If email not verified -> redirect to verify flow (do not go to MainShell)
       if (refreshed != null && !refreshed.emailVerified) {
-        // try to use pending signup data if available
         final pending = await PendingSignupService.readPending();
 
         if (!mounted) return;
@@ -96,7 +98,6 @@ class _LoginPageState extends State<LoginPage> {
             MaterialPageRoute(
               builder: (_) => VerifyEmailPage(
                 email: pending['email'] as String,
-                // VerifyEmailPage constructor expects these args
                 firstName: pending['firstName'] as String,
                 lastName: pending['lastName'] as String,
                 studentId: pending['studentId'] as String?,
@@ -105,7 +106,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
           );
         } else {
-          // fallback: pass email and empty names/role
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -120,7 +120,6 @@ class _LoginPageState extends State<LoginPage> {
           );
         }
 
-        // show a small snack to explain
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please verify your email before continuing.')));
         }
@@ -156,14 +155,12 @@ class _LoginPageState extends State<LoginPage> {
                   'firstName': pending['firstName'] as String? ?? '',
                   'lastName': pending['lastName'] as String? ?? '',
                   'email': pending['email'] as String? ?? current.email,
-                  'studentId': pending['studentId'] as String?,
+                  'studentId': pending['studentId'] as String? ?? null,
                 });
                 role = 'student';
-                // clear pending on success
                 await PendingSignupService.clearPending();
               } catch (e) {
                 debugPrint('Failed to create student doc from pending: $e');
-                // fallback: we'll create minimal doc below
               }
             } else {
               try {
@@ -190,23 +187,18 @@ class _LoginPageState extends State<LoginPage> {
               role = 'student';
             } catch (e) {
               debugPrint('Failed to create fallback minimal user doc: $e');
-              // Non-fatal — the app can still continue, but profile fields may be missing.
             }
           }
         }
       } catch (fsErr) {
         debugPrint('Firestore read/create failed: $fsErr — continuing to MainShell.');
-        // non-fatal
       }
 
-      // Only now set persistent "isLoggedIn" preference because we are allowing entry.
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isLoggedIn', true);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Signed in as ${current.email}')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Signed in as ${current.email}')));
 
       Navigator.pushReplacement(
         context,
@@ -223,13 +215,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  /// Improved reset flow:
-  /// 1) Try Firestore lookup for email
-  /// 2) If lookup finds user -> send password reset email
-  /// 3) If lookup finds no user -> show explicit "No account found"
-  /// 4) If lookup fails (network/permission), FALLBACK to sendPasswordResetEmail
-  ///    but show a privacy-preserving message ("If an account exists...") to avoid
-  ///    revealing whether the email is registered.
+  /// Improved reset flow (keeps your logic as-is)
   Future<void> _sendPasswordResetEmail() async {
     _setError(null);
     final email = _emailCtrl.text.trim();
@@ -246,25 +232,15 @@ class _LoginPageState extends State<LoginPage> {
     try {
       QuerySnapshot<Map<String, dynamic>> query;
       try {
-        // attempt Firestore lookup
-        query = await FirebaseFirestore.instance
-            .collection('users')
-            .where('email', isEqualTo: email)
-            .limit(1)
-            .get();
-
+        query = await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: email).limit(1).get();
         debugPrint('Firestore lookup succeeded. docs=${query.docs.length}');
       } on FirebaseException catch (fe) {
-        // Firestore-specific issue (permission-denied, unavailable, network, etc)
         debugPrint('Firestore lookup failed with FirebaseException: ${fe.code} ${fe.message}');
-        // Fallback: attempt to send reset email using FirebaseAuth but show generic message
         try {
           await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-          // privacy-preserving message: don't reveal existence
           _setError('If an account exists for that email, a password reset link was sent. Check your inbox (and spam).');
         } on FirebaseAuthException catch (ae) {
           debugPrint('sendPasswordResetEmail failed after Firestore error: ${ae.code} ${ae.message}');
-          // Map auth exceptions where appropriate
           _setError(_mapAuthException(ae));
         } catch (e) {
           debugPrint('Unexpected error sending reset email after Firestore failure: $e');
@@ -272,17 +248,14 @@ class _LoginPageState extends State<LoginPage> {
         } finally {
           if (mounted) setState(() => _isSendingReset = false);
         }
-        return; // finished fallback path
+        return;
       }
 
-      // If query succeeded: check results
       if (query.docs.isEmpty) {
-        // No user doc found -> show explicit message
         _setError('No account found with that email.');
         return;
       }
 
-      // User doc exists -> now call FirebaseAuth to send the reset email
       try {
         await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
         _setError('Password reset email sent to $email. Check your inbox (and spam).');
@@ -294,7 +267,6 @@ class _LoginPageState extends State<LoginPage> {
         _setError('Failed to send reset email. Try again later.');
       }
     } catch (e, st) {
-      // Generic fallback for any other unexpected error
       debugPrint('Unexpected error in reset flow: $e\n$st');
       _setError('Unable to verify user right now. Try again later.');
     } finally {
@@ -304,61 +276,32 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
+    final theme = Theme.of(context);
+    final primary = theme.primaryColor;
+    final headerGradient = AppStyles.primaryGradient(context);
 
+    // responsive logo sizing
     double imgSize = MediaQuery.of(context).size.width * 0.28;
     if (imgSize < 80) imgSize = 80;
     if (imgSize > 160) imgSize = 160;
 
+    // modern, safe text styles
+    final titleStyle = theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold) ??
+        const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white);
+    final subtitleStyle = theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600) ??
+        const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white);
+
     return Scaffold(
       body: Column(
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.only(top: 80, bottom: 40, left: 20, right: 20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).primaryColorDark,
-                    Theme.of(context).primaryColor,
-                  ],
-                  stops: const [0.0, 0.8],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Welcome back!', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold, color: Colors.white)),
-                        const SizedBox(height: 8),
-                        Text('Login', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: Colors.white)),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    width: imgSize,
-                    height: imgSize,
-                    margin: const EdgeInsets.only(left: 16),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 8, offset: const Offset(0, 4))],
-                      color: const Color.fromARGB(255, 121, 194, 150),
-                    ),
-                    child: ClipOval(child: Padding(padding: const EdgeInsets.all(2), child: Image.asset('assets/logo-transparent.png', fit: BoxFit.cover))),
-                  ),
-                ],
-              ),
-            ),
+          // header
+          AppStartingHeader(
+            title: 'Welcome back!',
+            subtitle: 'Login',
+            imgSize: imgSize,
           ),
 
+          // inline error message bar (if any)
           if (_errorMessage != null && _errorMessage!.isNotEmpty)
             Container(
               width: double.infinity,
@@ -367,6 +310,7 @@ class _LoginPageState extends State<LoginPage> {
               child: Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
             ),
 
+          // Form area
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
@@ -374,13 +318,14 @@ class _LoginPageState extends State<LoginPage> {
                 key: _formKey,
                 child: Column(
                   children: [
+                    // Email
                     TextFormField(
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         hintText: 'Enter your email',
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: theme.inputDecorationTheme.fillColor,
                         prefixIcon: Icon(Icons.email, color: primary),
                         contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -393,15 +338,19 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Password
                     TextFormField(
                       controller: _passwordCtrl,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         hintText: 'Enter your password',
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: theme.inputDecorationTheme.fillColor,
                         prefixIcon: Icon(Icons.lock, color: primary),
-                        suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.grey[600]), onPressed: () => setState(() => _obscurePassword = !_obscurePassword)),
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.grey[600]),
+                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        ),
                         contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       ),
@@ -410,55 +359,32 @@ class _LoginPageState extends State<LoginPage> {
 
                     const SizedBox(height: 10),
 
+                    // Forgot password
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: _isSendingReset ? null : _sendPasswordResetEmail,
                         style: TextButton.styleFrom(foregroundColor: primary),
-                        child: _isSendingReset ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Forgot Password?'),
+                        child: _isSendingReset
+                            ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('Forgot Password?'),
                       ),
                     ),
-                    const SizedBox(height: 10),
 
+                    const SizedBox(height: 6),
+
+                    // Login primary button (AppPrimaryButton) - keeps your preferred sizing
                     SizedBox(
                       width: double.infinity,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Theme.of(context).primaryColorDark,
-                              Theme.of(context).primaryColor,
-                            ],
-                            stops: const [0.0, 0.5],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _login,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Text('Login', style: TextStyle(fontSize: 16)),
-                        ),
+                      child: AppPrimaryButton(
+                        text: _isLoading ? 'Signing in...' : 'Login',
+                        onPressed: _isLoading ? () {} : _login,
                       ),
                     ),
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
 
+                    // Register link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

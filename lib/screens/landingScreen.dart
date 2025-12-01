@@ -1,210 +1,184 @@
 // lib/screens/landing_screen.dart
 import 'package:flutter/material.dart';
 import 'package:syllabuddy/screens/login.dart';
+import 'package:syllabuddy/widgets/app_primary_button.dart';
+import 'package:syllabuddy/styles/app_styles.dart';
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
+    final theme = Theme.of(context);
+    final primary = theme.primaryColor;
 
-    // responsive image size
+    final headerGradient = AppStyles.primaryGradient(context);
+
+    // Subtitle text style (larger + readable)
+    final subtitleStyle = TextStyle(
+      fontSize: 20,
+      height: 1.45,
+      color: Colors.black87,
+      fontWeight: FontWeight.w400,
+    );
+
+    // Bold black text for “Syllabuddy”
+    final boldBlack = const TextStyle(
+      fontWeight: FontWeight.w800,
+      color: Colors.black87,
+    );
+
+    // Soft gradient for subtitle container
+    final subtitleGradient = LinearGradient(
+      colors: [
+        primary.withOpacity(0.35), // darker
+        primary.withOpacity(0.25), // lighter middle
+        primary.withOpacity(0.35), // darker again
+      ],
+      stops: const [
+        0.0,   // start
+        0.5,   // middle
+        1.0,   // end
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+
+    // Adjust landing image sizing
     final screenW = MediaQuery.of(context).size.width;
     double imgSize = screenW * 0.62;
-    if (imgSize > 420) imgSize = 420;
-    if (imgSize < 260) imgSize = 260;
+    imgSize = imgSize.clamp(260, 420);
 
     return Scaffold(
       body: SafeArea(
         top: false,
-        child: Column(
+        child: Stack(
           children: [
-            // Top banner with curved bottom and gradient
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(40),
-                bottomRight: Radius.circular(40),
-              ),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.only(top: 60, bottom: 40, left: 20, right: 20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Theme.of(context).primaryColorDark,
-                      Theme.of(context).primaryColor,
-                    ],
-                    stops: const [0.0, 0.8],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+            Column(
+              children: [
+                // HEADER
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(AppStyles.radiusLarge),
+                    bottomRight: Radius.circular(AppStyles.radiusLarge),
+                  ),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.only(
+                        top: 60, bottom: 40, left: 20, right: 20),
+                    decoration: BoxDecoration(gradient: headerGradient),
+                    child: Center(
+                      child: Image.asset(
+                        'assets/landing.png',
+                        height: imgSize,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // responsive image
-                    Image.asset(
-                      'assets/landing.png',
-                      height: 350,
-                      fit: BoxFit.contain,
+
+                // BODY CONTENT
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title
+                        RichText(
+                          text: TextSpan(
+                            text: 'Welcome to ',
+                            style: TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: 'Syllabuddy!',
+                                style: TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.bold,
+                                  color: primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Subtitle container
+                        Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            gradient: subtitleGradient,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text.rich(
+                            TextSpan(
+                              style: subtitleStyle,
+                              children: [
+                                const TextSpan(
+                                    text:
+                                        'A smart companion built to support your college experience. '),
+                                TextSpan(
+                                    text: 'Syllabuddy ',
+                                    style: boldBlack ),
+                                const TextSpan(text: 'keeps your '),
+                                TextSpan(
+                                  text: 'syllabi',
+                                  style: TextStyle(fontWeight: FontWeight.w700, color: primary)
+                                ),
+                                const TextSpan(text: ', '),
+                                TextSpan(
+                                  text: 'schedules',
+                                  style: TextStyle(fontWeight: FontWeight.w700, color: primary)
+                                ),
+                                const TextSpan(text: ', '),
+                                TextSpan(
+                                  text: 'exams',
+                                  style: TextStyle(fontWeight: FontWeight.w700, color: primary)
+                                ),
+                                const TextSpan(text: ', and '),
+                                TextSpan(
+                                  text: 'hall allotments',
+                                  style: TextStyle(fontWeight: FontWeight.w700, color: primary)
+                                ),
+                                const TextSpan(
+                                  text:
+                                      ', along with other important academic essentials to help you stay prepared and manage each semester with ease.',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 110), // space above the button
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
 
-            // Bottom Content
-            Expanded(
-              child: SingleChildScrollView(
-                // same padding you used before
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title (unchanged)
-                    RichText(
-                      text: TextSpan(
-                        text: 'Welcome to ',
-                        style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: 'Syllabuddy!',
-                            style: TextStyle(
-                              color: primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Subtitle (your styled container, unchanged)
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: primary.withOpacity(0.06),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text.rich(
-                        TextSpan(
-                          style: const TextStyle(
-                            fontSize: 18,
-                            color: Colors.black87,
-                            height: 1.35,
-                          ),
-                          children: [
-                            const TextSpan(
-                              text: 'A smart companion built to support your college experience. ',
-                            ),
-
-                            TextSpan(
-                              text: 'Syllabuddy ',
-                              style: TextStyle(fontWeight: FontWeight.w700, color: Theme.of(context).primaryColorDark),
-                            ),
-
-                            const TextSpan(text: 'keeps your '),
-
-                            TextSpan(
-                              text: 'syllabi',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-
-                            const TextSpan(text: ', '),
-
-                            TextSpan(
-                              text: 'schedules',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-
-                            const TextSpan(text: ', '),
-
-                            TextSpan(
-                              text: 'exams',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-
-                            const TextSpan(text: ', and '),
-
-                            TextSpan(
-                              text: 'hall allotments',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-
-                            const TextSpan(
-                              text:
-                                  ', along with other important academic essentials, all in one organized place to help you stay prepared and manage each semester with ease.',
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    ),
-
-                    // small spacer (keeps the same visual gap as before)
-                    const SizedBox(height: 20),
-
-                    // Get Started Button with its SafeArea to keep it off the phone's bottom inset
-                    SafeArea(
-                      top: false,
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Theme.of(context).primaryColorDark,
-                                Theme.of(context).primaryColor,
-                              ],
-                              stops: const [0.0, 0.5],
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage()));
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              'Get Started',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+            // BOTTOM-ALIGNED BUTTON
+            Positioned(
+              left: 24,
+              right: 24,
+              bottom: 32,
+              child: SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: AppPrimaryButton(
+                  text: "Get Started",
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginPage()),
+                    );
+                  },
                 ),
               ),
             ),

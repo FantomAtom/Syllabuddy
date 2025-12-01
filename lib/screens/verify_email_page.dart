@@ -8,6 +8,12 @@ import 'login.dart';
 import 'package:syllabuddy/services/pending_signup_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// shared widgets / styles
+import 'package:syllabuddy/theme.dart';
+import 'package:syllabuddy/widgets/app_primary_button.dart';
+import 'package:syllabuddy/styles/app_styles.dart';
+import 'package:syllabuddy/widgets/starting_screens_header.dart';
+
 class VerifyEmailPage extends StatefulWidget {
   final String email;
   final String firstName;
@@ -57,7 +63,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        // no signed-in user; nothing to check
         return;
       }
 
@@ -72,7 +77,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
           await _finalizeAccount(refreshed.uid);
         } catch (e) {
           debugPrint('Finalize failed: $e');
-          // If finalization fails, don't navigate into the app.
           if (mounted) {
             setState(() => _message = 'Failed to finalize account: $e');
           }
@@ -118,7 +122,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
       await prefs.setBool('isLoggedIn', true);
     } catch (e) {
       debugPrint("Firestore finalization failed: $e");
-      // bubble up so caller can decide not to navigate
       rethrow;
     }
   }
@@ -144,14 +147,13 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
           return;
         }
         setState(() => _cooldown--);
-
         if (_cooldown <= 0) timer.cancel();
       });
     } catch (e) {
       debugPrint("Resend failed: $e");
       setState(() => _message = "Failed to resend email.");
     } finally {
-      setState(() => _isSending = false);
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
@@ -179,65 +181,35 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
+    final theme = Theme.of(context);
+    final primary = theme.primaryColor;
+    final headerGradient = AppStyles.primaryGradient(context);
 
+    // responsive logo sizing
     double imgSize = MediaQuery.of(context).size.width * 0.24;
-    imgSize = imgSize.clamp(64, 140);
+    imgSize = imgSize.clamp(64.0, 140.0);
+
+    // use themed bright background for logo
+    final logoBg = theme.logoBackground;
 
     return Scaffold(
       body: Column(
         children: [
-          // HEADER
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(40),
-                bottomRight: Radius.circular(40)),
-            child: Container(
-              width: double.infinity,
-              padding:
-                  const EdgeInsets.only(top: 80, bottom: 36, left: 20, right: 20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).primaryColorDark,
-                    primary,
-                  ],
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      "Verify your email",
-                      style: const TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                  ),
-                  Container(
-                    width: imgSize,
-                    height: imgSize,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFF79C296),
-                    ),
-                    child: ClipOval(
-                      child: Image.asset("assets/logo-transparent.png"),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          AppStartingHeader(
+            title: 'Verify your email to proceed further',
+            imgSize: imgSize,
           ),
 
+          // Body
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
+                  // Info card
                   Card(
                     elevation: 2,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -245,91 +217,74 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                         children: [
                           const Text("A verification email has been sent to:"),
                           const SizedBox(height: 8),
-                          Text(widget.email,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text(widget.email, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           const SizedBox(height: 16),
                           Text(
-                              "Tap the link in your email, then return and press \"I verified — continue\".",
-                              style: TextStyle(color: Colors.grey[700])),
+                            "Tap the link in your email, then return and press \"I verified\".",
+                            style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8)),
+                          ),
 
                           if (_message != null) ...[
                             const SizedBox(height: 12),
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.grey[200],
+                                gradient: LinearGradient(
+                                  colors: [primary.withOpacity(0.06), primary.withOpacity(0.02)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child:
-                                  Text(_message!, style: const TextStyle(fontSize: 14)),
+                              child: Text(_message!, style: const TextStyle(fontSize: 14)),
                             ),
                           ],
 
                           const SizedBox(height: 20),
 
-                          // BUTTONS
+                          // Buttons row
                           Row(
                             children: [
+                              // Primary: I verified
                               Expanded(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Theme.of(context).primaryColorDark,
-                                        primary,
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: ElevatedButton(
-                                    onPressed: _isChecking
-                                        ? null
-                                        : () => _checkEmailVerified(),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      shadowColor: Colors.transparent,
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    child: _isChecking
-                                        ? const CircularProgressIndicator(
-                                            color: Colors.white, strokeWidth: 2)
-                                        : const Text("I verified — continue"),
+                                child: SizedBox(
+                                  height: 48,
+                                  child: AppPrimaryButton(
+                                    text: _isChecking ? 'Checking…' : 'I verified',
+                                    onPressed: _isChecking ? () {} : _checkEmailVerified,
                                   ),
                                 ),
                               ),
+
                               const SizedBox(width: 12),
+
+                              // Secondary: Resend
                               SizedBox(
-                                width: 130,
+                                width: 140,
+                                height: 48,
                                 child: ElevatedButton(
-                                  onPressed: (_isSending || _cooldown > 0)
-                                      ? null
-                                      : _resend,
+                                  onPressed: (_isSending || _cooldown > 0) ? null : _resend,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.grey[200],
+                                    backgroundColor: Theme.of(context).cardColor,
                                     foregroundColor: primary,
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 16),
+                                    elevation: 0,
+                                    side: BorderSide(color: primary.withOpacity(0.06)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                   ),
                                   child: _isSending
-                                      ? const CircularProgressIndicator(
-                                          strokeWidth: 2)
-                                      : Text(_cooldown > 0
-                                          ? "Resend (${_cooldown}s)"
-                                          : "Resend"),
+                                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                                      : Text(_cooldown > 0 ? "Resend (${_cooldown}s)" : "Resend"),
                                 ),
                               ),
                             ],
                           ),
 
                           const SizedBox(height: 14),
+
                           Center(
                             child: TextButton(
                               onPressed: _cancel,
-                              child: const Text("Cancel and delete account",
-                                  style: TextStyle(
-                                      decoration: TextDecoration.underline)),
+                              child: Text("Cancel and delete account", style: TextStyle(decoration: TextDecoration.underline, color: Theme.of(context).textTheme.bodyMedium?.color)),
                             ),
                           ),
                         ],
@@ -338,9 +293,9 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                   ),
 
                   const SizedBox(height: 18),
-                  Text(
-                    "Tip: Check your spam/promotions folder.",
-                    style: TextStyle(color: Colors.grey[600]),
+                  Align(
+                    alignment: Alignment.center,
+                    child: Text("Tip: Check your spam/promotions folder.", style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7))),
                   ),
                 ],
               ),

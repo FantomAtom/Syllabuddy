@@ -22,6 +22,12 @@ const Color kScaffoldDark = Color(0xFF0F1513);
 const Color kShadowLight = Colors.black12;
 const Color kShadowDark = Colors.black54;
 
+/// Bright logo circle background (light mode)
+const Color kLogoBgLight = Color(0xFF79C296);
+
+/// Slightly darker logo circle for dark mode (keeps contrast)
+const Color kLogoBgDark = Color(0xFF1F7F56);
+
 //////////////////////////////////////////////////////
 /// LIGHT THEME
 final ThemeData lightTheme = ThemeData(
@@ -123,4 +129,11 @@ extension AppColors on ColorScheme {
   Color get accentDarkMode {
     return kAccentDark;
   }
+}
+
+/// Convenience accessor on ThemeData to read logo background color.
+/// Returns a light variant for light theme and a darker variant for dark theme.
+/// Usage: Theme.of(context).logoBackground
+extension AppThemeExtras on ThemeData {
+  Color get logoBackground => brightness == Brightness.dark ? kLogoBgDark : kLogoBgLight;
 }
