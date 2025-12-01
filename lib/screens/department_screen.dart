@@ -8,19 +8,35 @@ class DepartmentScreen extends StatelessWidget {
   final String courseLevel;
   const DepartmentScreen({Key? key, required this.courseLevel}) : super(key: key);
 
+  /// Utility: derive a darker variant from [base] by reducing lightness (HSL).
+  Color _deriveDarker(Color base, double reduceBy) {
+    final hsl = HSLColor.fromColor(base);
+    final newLightness = (hsl.lightness - reduceBy).clamp(0.0, 1.0);
+    return hsl.withLightness(newLightness).toColor();
+  }
+
+  Color _textColorOrFallback(BuildContext context, Color fallback) {
+    // Prefer theme text color if available, otherwise use fallback
+    return Theme.of(context).textTheme.bodyMedium?.color ?? fallback;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    // Reference to the parent document: /degree-level/<courseLevel>
-    final parentDocRef = FirebaseFirestore.instance
-        .collection('degree-level')
-        .doc(courseLevel);
+    // primary follows the active theme (kPrimaryDark in dark theme, kPrimaryLight in light)
+    final primary = theme.primaryColor;
+    // derive darker variant to create the two-tone gradient consistent with degrees screen
+    final primaryDarkVariant = _deriveDarker(primary, 0.18);
+
+    // Firestore parent reference
+    final parentDocRef = FirebaseFirestore.instance.collection('degree-level').doc(courseLevel);
 
     return Scaffold(
       body: Column(
         children: [
-          // Top curved banner with back button
+          // Top curved banner with back button — thinner + two-tone gradient
           ClipRRect(
             borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(40),
@@ -28,8 +44,15 @@ class DepartmentScreen extends StatelessWidget {
             ),
             child: Container(
               width: double.infinity,
-              color: primary,
-              padding: const EdgeInsets.only(top: 80, bottom: 40),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [primaryDarkVariant, primary],
+                  stops: const [0.0, 0.5],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                ),
+              ),
+              padding: const EdgeInsets.only(top: 60, bottom: 28),
               child: Stack(
                 children: [
                   Align(
@@ -37,14 +60,14 @@ class DepartmentScreen extends StatelessWidget {
                     child: Text(
                       'Select Department',
                       style: TextStyle(
-                        fontSize: 28,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withOpacity(0.95),
                       ),
                     ),
                   ),
                   Positioned(
-                    left: 16,
+                    left: 8,
                     top: 0,
                     bottom: 0,
                     child: IconButton(
@@ -76,7 +99,10 @@ class DepartmentScreen extends StatelessWidget {
                             child: Text(
                               'Error checking degree-level:\n${parentSnapshot.error}',
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 16, color: Colors.grey.shade800),
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: _textColorOrFallback(context, Colors.grey.shade800),
+                              ),
                             ),
                           ),
                         ],
@@ -96,7 +122,10 @@ class DepartmentScreen extends StatelessWidget {
                         'No degree-level document found at /degree-level/$courseLevel.\n'
                         'Make sure the document exists and the collection name is "degree-level".',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: _textColorOrFallback(context, Colors.grey.shade800),
+                        ),
                       ),
                     );
                   }
@@ -119,7 +148,10 @@ class DepartmentScreen extends StatelessWidget {
                                 child: Text(
                                   'Error loading departments:\n${snapshot.error}',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 16, color: Colors.grey.shade800),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: _textColorOrFallback(context, Colors.grey.shade800),
+                                  ),
                                 ),
                               ),
                             ],
@@ -138,7 +170,10 @@ class DepartmentScreen extends StatelessWidget {
                           child: Text(
                             'No departments found for $courseLevel.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: _textColorOrFallback(context, Colors.grey.shade800),
+                            ),
                           ),
                         );
                       }

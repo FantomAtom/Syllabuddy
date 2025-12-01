@@ -1,13 +1,22 @@
 // lib/screens/degrees_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ✅ added for user name
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:syllabuddy/screens/landingScreen.dart';
 import 'package:syllabuddy/services/user_service.dart';
 import 'package:syllabuddy/theme.dart';
+
+// new reusable widgets / styles
+import 'package:syllabuddy/styles/app_styles.dart';
+import 'package:syllabuddy/widgets/app_header.dart';
+import 'package:syllabuddy/widgets/app_option_card.dart';
+import 'package:syllabuddy/widgets/app_section_title.dart';
+import 'package:syllabuddy/widgets/app_primary_button.dart';
+import 'package:syllabuddy/widgets/app_dropdown.dart';
+
 import 'department_screen.dart';
 import 'subject_syllabus_screen.dart';
-import 'profile_screen.dart';
 
 class CoursesScreen extends StatefulWidget {
   const CoursesScreen({Key? key}) : super(key: key);
@@ -37,7 +46,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // ✅ User display name (minimal change replacing hardcoded "John")
+  // User display name
   String? _userName;
   bool _loadingUser = true;
 
@@ -45,7 +54,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
   void initState() {
     super.initState();
     _loadDegrees();
-    _fetchUserName(); // ✅ fetch the logged-in user's name
+    _fetchUserName();
   }
 
   Future<void> _fetchUserName() async {
@@ -58,7 +67,6 @@ class _CoursesScreenState extends State<CoursesScreen> {
         });
         return;
       }
-
       final data = await UserService.getCurrentUserData();
       final first = data?['firstName'] ?? '';
       setState(() {
@@ -95,8 +103,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
       return;
     }
 
-    final snap =
-        await _db.collection('degree-level').doc(degreeId).collection('department').get();
+    final snap = await _db.collection('degree-level').doc(degreeId).collection('department').get();
     setState(() {
       _departmentDocs = snap.docs;
       _loadingDepartments = false;
@@ -131,8 +138,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
     });
   }
 
-  Future<void> _loadSemestersFor(
-      String? degreeId, String? departmentId, String? yearId) async {
+  Future<void> _loadSemestersFor(String? degreeId, String? departmentId, String? yearId) async {
     setState(() {
       _loadingSemesters = true;
       _semesterDocs = [];
@@ -161,12 +167,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
   }
 
   void _navigateToDept(BuildContext context, String level) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DepartmentScreen(courseLevel: level),
-      ),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => DepartmentScreen(courseLevel: level)));
   }
 
   void _onSearchPressed() {
@@ -184,17 +185,32 @@ class _CoursesScreenState extends State<CoursesScreen> {
     );
   }
 
+  /// Utility: derive a darker variant from [base] by reducing lightness (HSL).
+  Color _deriveDarker(Color base, double reduceBy) {
+    final hsl = HSLColor.fromColor(base);
+    final newLightness = (hsl.lightness - reduceBy).clamp(0.0, 1.0);
+    return hsl.withLightness(newLightness).toColor();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
-    final userName = _loadingUser ? '...' : (_userName ?? 'User'); // ✅ minimal change
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    // Build degree cards widgets
+    // primary is kPrimaryDark in your dark theme, or kPrimaryLight in light theme
+    final Color primary = theme.primaryColor;
+
+    // derive a darker variant programmatically; tweak reduceBy if you want heavier contrast
+    final Color primaryDarkVariant = _deriveDarker(primary, 0.1);
+
+    final Color primaryText = theme.colorScheme.primaryText;
+    final userName = _loadingUser ? '...' : (_userName ?? 'User');
+
+    // Build degree cards widgets (UG then PG ordering)
     final degreeWidgets = <Widget>[];
     if (_degreeDocs.isEmpty) {
       degreeWidgets.add(const Center(child: CircularProgressIndicator()));
     } else {
-      // Order UG then PG
       final mapById = {for (var d in _degreeDocs) d.id.toUpperCase(): d};
       final ordered = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
       if (mapById.containsKey('UG')) ordered.add(mapById['UG']!);
@@ -216,41 +232,105 @@ class _CoursesScreenState extends State<CoursesScreen> {
             lowerDisplay.contains('post graduate');
         final icon = isPg ? Icons.workspace_premium : Icons.school;
 
-        degreeWidgets.add(_CourseCard(
-          title: displayName,
-          icon: icon,
-          onTap: () => _navigateToDept(context, doc.id),
-        ));
+        degreeWidgets.add(
+          AppOptionCard(
+            title: displayName,
+            icon: icon,
+            onTap: () => _navigateToDept(context, doc.id),
+          ),
+        );
         degreeWidgets.add(const SizedBox(height: 24));
       }
     }
 
-    // Search UI widget (to be placed in same scroll view)
+    // Search area (uses centralized components)
     final searchSection = Padding(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Search Syllabus',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primary)),
+          const AppSectionTitle(text: 'Search the syllabus'),
           const SizedBox(height: 12),
 
           // Degree dropdown
-          _buildDegreeDropdown(),
-
+          AppDropdown(
+            label: 'Degree',
+            value: _selectedDegreeId,
+            items: [
+              const DropdownMenuItem<String?>(value: null, child: Text('All Degrees')),
+              ..._degreeDocs.map((d) {
+                final display = (d.data()['displayName'] as String?) ?? d.id;
+                return DropdownMenuItem<String?>(value: d.id, child: Text(display));
+              }),
+            ],
+            onChanged: (v) async {
+              setState(() => _selectedDegreeId = v);
+              await _loadDepartmentsForDegree(v);
+            },
+          ),
           const SizedBox(height: 8),
 
           // Department dropdown
-          _buildDepartmentDropdown(),
-
+          _loadingDepartments
+              ? const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()))
+              : AppDropdown(
+                  label: 'Department',
+                  value: _selectedDepartmentId,
+                  items: [
+                    const DropdownMenuItem<String?>(value: null, child: Text('All Departments')),
+                    ..._departmentDocs.map((d) {
+                      final display = (d.data()['displayName'] as String?) ?? d.id;
+                      return DropdownMenuItem<String?>(value: d.id, child: Text(display));
+                    }),
+                  ],
+                  onChanged: (v) async {
+                    setState(() => _selectedDepartmentId = v);
+                    await _loadYearsFor(_selectedDegreeId, v);
+                  },
+                ),
           const SizedBox(height: 8),
 
           // Year & Semester
           Row(
             children: [
-              Expanded(child: _buildYearDropdown()),
+              Expanded(
+                child: _loadingYears
+                    ? const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()))
+                    : AppDropdown(
+                        label: 'Year',
+                        value: _selectedYearId,
+                        items: [
+                          const DropdownMenuItem<String?>(value: null, child: Text('All Years')),
+                          ..._yearDocs.map((d) {
+                            final display =
+                                (d.data()['displayName'] as String?) ?? (d.data()['value']?.toString() ?? d.id);
+                            return DropdownMenuItem<String?>(value: d.id, child: Text(display));
+                          }),
+                        ],
+                        onChanged: (v) async {
+                          setState(() => _selectedYearId = v);
+                          await _loadSemestersFor(_selectedDegreeId, _selectedDepartmentId, v);
+                        },
+                      ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _buildSemesterDropdown()),
+              Expanded(
+                child: _loadingSemesters
+                    ? const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()))
+                    : AppDropdown(
+                        label: 'Semester',
+                        value: _selectedSemesterId,
+                        items: [
+                          const DropdownMenuItem<String?>(value: null, child: Text('All Semesters')),
+                          ..._semesterDocs.map((d) {
+                            final display =
+                                (d.data()['displayName'] as String?) ?? (d.data()['value']?.toString() ?? d.id);
+                            return DropdownMenuItem<String?>(value: d.id, child: Text(display));
+                          }),
+                        ],
+                        onChanged: (v) => setState(() => _selectedSemesterId = v),
+                      ),
+              ),
             ],
           ),
 
@@ -258,26 +338,25 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
           // Subject search field
           TextField(
-            decoration: const InputDecoration(
+            style: TextStyle(color: primaryText),
+            decoration: InputDecoration(
               labelText: 'Subject name or code (optional)',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search),
+              filled: true,
+              fillColor: isDark ? const Color(0xFF111919) : Colors.grey[100],
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
             ),
             onChanged: (v) => setState(() => _subjectQuery = v.trim()),
           ),
 
           const SizedBox(height: 12),
 
-          // Search button
+          // Search button uses AppPrimaryButton (gradient inside)
           SizedBox(
             height: 48,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.search),
-              label: const Text('Search'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+            child: AppPrimaryButton(
+              text: 'Search',
+              icon: Icons.search,
               onPressed: _onSearchPressed,
             ),
           ),
@@ -285,7 +364,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
       ),
     );
 
-    // Combine degree widgets + search into a single scrollable list
+    // Assemble children
     final children = <Widget>[];
     children.add(const SizedBox(height: 16));
     children.addAll(degreeWidgets);
@@ -296,48 +375,22 @@ class _CoursesScreenState extends State<CoursesScreen> {
     return Scaffold(
       body: Column(
         children: [
-          // Fixed Top curved banner (stays on top while rest scrolls)
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
-            child: Container(
-              width: double.infinity,
-              color: primary,
-              padding: const EdgeInsets.only(top: 80, bottom: 40),
-              child: Stack(
-                children: [
-                  Center(
-                    child: Text(
-                      'Select Degree Level',
-                      style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white.withOpacity(0.9)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // Centralized header widget (thinner)
+          const AppHeader(title: 'Select Degree Level', showBack: false),
 
-          // Scrollable content
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                // Welcome message + profile button row
+                // Welcome message
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
-                          'Welcome, $userName', // ✅ uses real name
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: primary,
-                          ),
+                          'Welcome, $userName',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: primaryText),
                         ),
                       ),
                     ],
@@ -346,7 +399,6 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
                 const SizedBox(height: 8),
 
-                // degrees + search
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
@@ -362,91 +414,9 @@ class _CoursesScreenState extends State<CoursesScreen> {
       ),
     );
   }
-
-  Widget _buildDegreeDropdown() {
-    return DropdownButtonFormField<String?>(
-      value: _selectedDegreeId,
-      decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Degree'),
-      items: [
-        const DropdownMenuItem<String?>(value: null, child: Text('All Degrees')),
-        ..._degreeDocs.map((d) {
-          final display = (d.data()['displayName'] as String?) ?? d.id;
-          return DropdownMenuItem<String?>(value: d.id, child: Text(display));
-        }),
-      ],
-      onChanged: (v) async {
-        setState(() => _selectedDegreeId = v);
-        await _loadDepartmentsForDegree(v);
-      },
-    );
-  }
-
-  Widget _buildDepartmentDropdown() {
-    if (_loadingDepartments) {
-      return const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()));
-    }
-
-    return DropdownButtonFormField<String?>(
-      value: _selectedDepartmentId,
-      decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Department'),
-      items: [
-        const DropdownMenuItem<String?>(value: null, child: Text('All Departments')),
-        ..._departmentDocs.map((d) {
-          final display = (d.data()['displayName'] as String?) ?? d.id;
-          return DropdownMenuItem<String?>(value: d.id, child: Text(display));
-        }),
-      ],
-      onChanged: (v) async {
-        setState(() => _selectedDepartmentId = v);
-        await _loadYearsFor(_selectedDegreeId, v);
-      },
-    );
-  }
-
-  Widget _buildYearDropdown() {
-    if (_loadingYears) {
-      return const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()));
-    }
-
-    return DropdownButtonFormField<String?>(
-      value: _selectedYearId,
-      decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Year'),
-      items: [
-        const DropdownMenuItem<String?>(value: null, child: Text('All Years')),
-        ..._yearDocs.map((d) {
-          final display = (d.data()['displayName'] as String?) ?? (d.data()['value']?.toString() ?? d.id);
-          return DropdownMenuItem<String?>(value: d.id, child: Text(display));
-        }),
-      ],
-      onChanged: (v) async {
-        setState(() => _selectedYearId = v);
-        await _loadSemestersFor(_selectedDegreeId, _selectedDepartmentId, v);
-      },
-    );
-  }
-
-  Widget _buildSemesterDropdown() {
-    if (_loadingSemesters) {
-      return const SizedBox(height: 56, child: Center(child: CircularProgressIndicator()));
-    }
-
-    return DropdownButtonFormField<String?>(
-      value: _selectedSemesterId,
-      decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Semester'),
-      items: [
-        const DropdownMenuItem<String?>(value: null, child: Text('All Semesters')),
-        ..._semesterDocs.map((d) {
-          final display = (d.data()['displayName'] as String?) ?? (d.data()['value']?.toString() ?? d.id);
-          return DropdownMenuItem<String?>(value: d.id, child: Text(display));
-        }),
-      ],
-      onChanged: (v) => setState(() => _selectedSemesterId = v),
-    );
-  }
 }
 
-/// Results screen that queries collectionGroup('subjects') and filters
-/// client-side by the selected path parts and search query.
+/// SubjectsResultsScreen (kept unchanged — same logic as before)
 class SubjectsResultsScreen extends StatelessWidget {
   final String? degreeId;
   final String? departmentId;
@@ -494,7 +464,6 @@ class SubjectsResultsScreen extends StatelessWidget {
       if (p == null || p.toLowerCase() != semesterId!.toLowerCase()) return false;
     }
 
-    // text match against displayName/title or doc id (subject code)
     if (subjectQuery.isNotEmpty) {
       final data = doc.data();
       final name = (data?['displayName'] as String?) ?? (data?['title'] as String?) ?? '';
@@ -520,7 +489,8 @@ class SubjectsResultsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
+    final theme = Theme.of(context);
+    final primary = theme.primaryColor;
     final stream = FirebaseFirestore.instance.collectionGroup('subjects').snapshots();
 
     return Scaffold(
@@ -549,9 +519,7 @@ class SubjectsResultsScreen extends StatelessWidget {
             itemBuilder: (context, i) {
               final doc = filtered[i];
               final data = doc.data();
-              final title = (data?['displayName'] as String?) ??
-                  (data?['title'] as String?) ??
-                  doc.id;
+              final title = (data?['displayName'] as String?) ?? (data?['title'] as String?) ?? doc.id;
               final subtitle = _formatShortPath(doc);
 
               return ElevatedButton(
@@ -561,15 +529,13 @@ class SubjectsResultsScreen extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () {
-                  // Parse the path into parts and navigate to the SubjectSyllabusScreen
                   final pathMap = _pathToMap(doc.reference.path);
                   final degree = pathMap['degree-level'] ?? '';
                   final department = pathMap['department'] ?? '';
                   final year = pathMap['year'] ?? '';
                   final sem = pathMap['semester'] ?? '';
                   final subjectId = doc.id;
-                  final subjectName =
-                      (data?['displayName'] as String?) ?? (data?['title'] as String?);
+                  final subjectName = (data?['displayName'] as String?) ?? (data?['title'] as String?);
 
                   Navigator.push(
                     context,
@@ -592,11 +558,9 @@ class SubjectsResultsScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(title,
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                           const SizedBox(height: 6),
-                          Text(subtitle,
-                              style: const TextStyle(fontSize: 13, color: Colors.white70)),
+                          Text(subtitle, style: const TextStyle(fontSize: 13, color: Colors.white70)),
                         ],
                       ),
                     ),
@@ -607,43 +571,6 @@ class SubjectsResultsScreen extends StatelessWidget {
             },
           );
         },
-      ),
-    );
-  }
-}
-
-class _CourseCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final VoidCallback onTap;
-  const _CourseCard({
-    required this.title,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))],
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-        child: Row(
-          children: [
-            Icon(icon, size: 40, color: primary),
-            const SizedBox(width: 16),
-            Text(title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primary)),
-            const Spacer(),
-            Icon(Icons.arrow_forward_ios, color: primary),
-          ],
-        ),
       ),
     );
   }

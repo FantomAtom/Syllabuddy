@@ -2,6 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'hall_allotments_demo.dart'; // <-- new demo screen (same folder)
+import 'package:syllabuddy/theme.dart';
 
 class ExamsScreen extends StatelessWidget {
   const ExamsScreen({Key? key}) : super(key: key);
@@ -105,26 +106,34 @@ class ExamsScreen extends StatelessWidget {
     );
   }
 
+  LinearGradient _primaryGradient(Color base) {
+    final h = HSLColor.fromColor(base);
+    final darker = h.withLightness((h.lightness - 0.12).clamp(0.0, 1.0)).toColor();
+    return LinearGradient(colors: [darker, base], stops: const [0.0, 0.5], begin: Alignment.bottomCenter, end: Alignment.topCenter);
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
+    final primaryGrad = _primaryGradient(primary);
+
     final now = DateTime.now();
     final stream = FirebaseFirestore.instance.collection('exam-sets').orderBy('createdAt', descending: true).snapshots();
 
     return Scaffold(
-      // Top curved banner like your CoursesScreen
       body: Column(
         children: [
+          // header with gradient
           ClipRRect(
             borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
             child: Container(
               width: double.infinity,
-              color: primary,
-              padding: const EdgeInsets.only(top: 80, bottom: 40),
+              decoration: BoxDecoration(gradient: primaryGrad),
+              padding: const EdgeInsets.only(top: 60, bottom: 28),
               child: Center(
                 child: Text(
                   'Exams',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
                 ),
               ),
             ),
@@ -199,15 +208,24 @@ class ExamsScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Row(
                     children: [
-                      Expanded(child: Text('Exam schedules', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: primary))),
+                      Expanded(child: Text('Exam schedules', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Theme.of(context).textTheme.bodyMedium?.color))),
                       const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.view_list),
-                        label: const Text('View Hall Allotments'),
-                        style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14)),
-                        onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const HallAllotmentsDemo()));
-                        },
+                      Container(
+                        decoration: BoxDecoration(gradient: primaryGrad, borderRadius: BorderRadius.circular(10)),
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.view_list),
+                          label: const Text('View Hall Allotments'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const HallAllotmentsDemo()));
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -215,9 +233,9 @@ class ExamsScreen extends StatelessWidget {
                 content.add(const SizedBox(height: 12));
 
                 if (ongoing.isNotEmpty) {
-                  content.add(const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Text('Ongoing', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  content.add(Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text('Ongoing', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).textTheme.bodyMedium?.color)),
                   ));
                   content.add(const SizedBox(height: 8));
                   for (final e in ongoing) {
@@ -237,6 +255,7 @@ class ExamsScreen extends StatelessWidget {
                         meta: rangeText,
                         badge: '${subjects.length} subjects',
                         onTap: () => _showExamDetails(context, data),
+                        primary: primary,
                       ),
                     ));
                     content.add(const SizedBox(height: 12));
@@ -244,9 +263,9 @@ class ExamsScreen extends StatelessWidget {
                 }
 
                 if (upcoming.isNotEmpty) {
-                  content.add(const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Text('Upcoming', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  content.add(Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text('Upcoming', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).textTheme.bodyMedium?.color)),
                   ));
                   content.add(const SizedBox(height: 8));
                   for (final e in upcoming) {
@@ -266,6 +285,7 @@ class ExamsScreen extends StatelessWidget {
                         meta: rangeText,
                         badge: '${subjects.length} subjects',
                         onTap: () => _showExamDetails(context, data),
+                        primary: primary,
                       ),
                     ));
                     content.add(const SizedBox(height: 12));
@@ -273,9 +293,9 @@ class ExamsScreen extends StatelessWidget {
                 }
 
                 if (undated.isNotEmpty) {
-                  content.add(const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Text('Scheduled (no dates)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  content.add(Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text('Scheduled (no dates)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).textTheme.bodyMedium?.color)),
                   ));
                   content.add(const SizedBox(height: 8));
                   for (final e in undated) {
@@ -292,6 +312,7 @@ class ExamsScreen extends StatelessWidget {
                         meta: 'No dates assigned',
                         badge: '${subjects.length} subjects',
                         onTap: () => _showExamDetails(context, data),
+                        primary: primary,
                       ),
                     ));
                     content.add(const SizedBox(height: 12));
@@ -303,10 +324,7 @@ class ExamsScreen extends StatelessWidget {
                   content.add(Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Center(
-                      child: Text(
-                        'No upcoming or ongoing exams.',
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
-                      ),
+                      child: Text('No upcoming or ongoing exams.', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6))),
                     ),
                   ));
                 }
@@ -336,6 +354,7 @@ class _ExamCard extends StatelessWidget {
   final String meta;
   final String badge;
   final VoidCallback onTap;
+  final Color primary;
 
   const _ExamCard({
     required this.title,
@@ -343,19 +362,26 @@ class _ExamCard extends StatelessWidget {
     required this.meta,
     required this.badge,
     required this.onTap,
+    required this.primary,
   });
+
+  Color _deriveSurface(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? Theme.of(context).cardColor : Colors.white;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
+    final surface = _deriveSurface(context);
+    final textColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black87;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 6))],
+          boxShadow: [BoxShadow(color: Theme.of(context).brightness == Brightness.dark ? Colors.black54 : Colors.black12, blurRadius: 8, offset: const Offset(0, 6))],
         ),
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
         child: Row(
@@ -371,16 +397,16 @@ class _ExamCard extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primary)),
                 const SizedBox(height: 6),
-                Text(subtitle, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                Text(subtitle, style: TextStyle(fontSize: 13, color: textColor)),
                 const SizedBox(height: 6),
-                Text(meta, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                Text(meta, style: TextStyle(fontSize: 12, color: textColor.withOpacity(0.7))),
               ]),
             ),
             const SizedBox(width: 8),
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(badge, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(badge, style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
                 const SizedBox(height: 8),
                 Icon(Icons.arrow_forward_ios, size: 16, color: primary),
               ],

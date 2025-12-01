@@ -1,7 +1,7 @@
 // lib/screens/signup.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:syllabuddy/screens/VerifyEmailPage.dart';
+import 'package:syllabuddy/screens/verify_email_page.dart';
 import 'login.dart';
 import 'package:syllabuddy/services/pending_signup_service.dart';
 

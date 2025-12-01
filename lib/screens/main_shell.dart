@@ -10,7 +10,7 @@ import 'admin_screen.dart';
 import 'exams_screen.dart';
 
 // new imports for verify redirect
-import 'package:syllabuddy/screens/VerifyEmailPage.dart';
+import 'package:syllabuddy/screens/verify_email_page.dart';
 import 'package:syllabuddy/services/pending_signup_service.dart';
 
 class MainShell extends StatefulWidget {

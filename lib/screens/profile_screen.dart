@@ -1,3 +1,4 @@
+// lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +7,8 @@ import 'package:syllabuddy/screens/landingScreen.dart';
 import 'package:syllabuddy/services/user_service.dart';
 import 'package:syllabuddy/screens/subject_syllabus_screen.dart';
 import 'package:syllabuddy/screens/bookmarks_screen.dart';
+import 'package:syllabuddy/theme_service.dart';
+import 'package:syllabuddy/theme.dart';
 
 /// ProfileScreen: simplified — no back/close handling or onClose callback.
 class ProfileScreen extends StatefulWidget {
@@ -181,27 +184,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirmed != true) return;
 
-    final userBefore = FirebaseAuth.instance.currentUser;
-    final uidBefore = userBefore?.uid;
-    debugPrint('Starting delete flow for uid=${uidBefore ?? 'null'}');
-
-    // Optional loading state here...
-
     try {
-      // 1) Delete Firestore/application data first (via your service).
-      // If your UserService.deleteAccount() also deletes Auth user, it's fine;
-      // this function will proceed to cleanup and navigate regardless.
       await UserService.deleteAccount();
       debugPrint('UserService.deleteAccount() completed');
     } catch (e, st) {
       debugPrint('UserService.deleteAccount() threw: $e\n$st');
-      // If Firestore deletion fails, show a helpful message and abort
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete account data: $e')));
       return;
     }
 
-    // 2) Try to delete Auth user if still present. This is best-effort.
     try {
       final current = FirebaseAuth.instance.currentUser;
       if (current != null) {
@@ -218,8 +210,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (after != null) {
                   await after.delete();
                   debugPrint('Auth user deleted after reauth.');
-                } else {
-                  debugPrint('No current user after reauth; cannot delete auth user.');
                 }
               } on FirebaseAuthException catch (e2) {
                 debugPrint('Auth delete after reauth failed: ${e2.code} ${e2.message}');
@@ -228,7 +218,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
               }
             } else {
-              // Reauth cancelled/failed. We'll continue to cleanup and navigate anyway.
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Please sign in again (recent login required) and retry account deletion.')),
@@ -241,14 +230,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }
           }
         }
-      } else {
-        debugPrint('No current user present when attempting auth delete (already signed out).');
       }
     } catch (e) {
       debugPrint('Unexpected error while attempting auth delete: $e');
     }
 
-    // 3) Local cleanup: prefs + signOut (safe even if already signed out)
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('isLoggedIn');
@@ -262,22 +248,98 @@ class _ProfileScreenState extends State<ProfileScreen> {
       debugPrint('signOut threw (ignored): $e');
     }
 
-    // 4) Always navigate to landing screen (deferred to next frame for navigator stability)
     if (!mounted) return;
-    debugPrint('Navigating to LandingScreen (mounted=${mounted})');
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      debugPrint('Performing navigation to LandingScreen now');
       Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LandingScreen()),
         (route) => false,
       );
     });
 
-    // Feedback for user
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account deletion process completed.')));
     }
   }
+
+  // helper that returns a two-tone gradient based on primary color
+  LinearGradient primaryGradientFrom(Color primary) {
+    final hsl = HSLColor.fromColor(primary);
+    final darker = hsl.withLightness((hsl.lightness - 0.12).clamp(0.0, 1.0)).toColor();
+    return LinearGradient(colors: [darker, primary], stops: const [0.0, 0.5], begin: Alignment.bottomCenter, end: Alignment.topCenter);
+  }
+
+  // red gradient used for delete action
+  LinearGradient redGradient() {
+    final base = Colors.red.shade600;
+    final hsl = HSLColor.fromColor(base);
+    final darker = hsl.withLightness((hsl.lightness - 0.14).clamp(0.0, 1.0)).toColor();
+    return LinearGradient(colors: [darker, base], stops: const [0.0, 0.5], begin: Alignment.bottomCenter, end: Alignment.topCenter);
+  }
+
+  // generic colored action button (keeps shape/padding consistent)
+  Widget buildActionButton({
+    required BuildContext ctx,
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+    LinearGradient? gradient,
+    Color? solidColor,
+    Color? foreground,
+  }) {
+    final borderRadius = BorderRadius.circular(12.0);
+    final fg = foreground ?? Colors.white;
+
+    if (gradient != null) {
+      return Container(
+        decoration: BoxDecoration(gradient: gradient, borderRadius: borderRadius),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: borderRadius,
+            onTap: onPressed,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: fg),
+                  const SizedBox(width: 10),
+                  Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final bg = solidColor ?? Theme.of(ctx).primaryColor;
+    return Container(
+      decoration: BoxDecoration(color: bg, borderRadius: borderRadius),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: borderRadius,
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: fg),
+                const SizedBox(width: 10),
+                Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // -----------------------
+  // Missing helpers re-added
+  // -----------------------
 
   // open bookmarks screen
   void _openBookmarks() {
@@ -287,8 +349,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  bool _isEditing = false;
-
+  // edit profile flow (re-implemented from your original)
   Future<void> _editProfile(BuildContext context) async {
     if (_isEditing) return;
     _isEditing = true;
@@ -345,104 +406,169 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _isEditing = false;
   }
 
+  bool _isEditing = false;
+
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
+    final theme = Theme.of(context);
+    final primary = theme.primaryColor;
+    final primaryGradient = primaryGradientFrom(primary);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Name/Member text colors: black in light, white in dark (per your request)
+    final nameAndMemberColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor = isDark ? Colors.white70 : Colors.grey[700];
+
+    // Switch button "dark" solid color: derive a darker variant from primary so it contrasts in dark mode.
+    final h = HSLColor.fromColor(primary);
+    final switchSolidColor = isDark
+        ? h.withLightness((h.lightness - 0.32).clamp(0.0, 1.0)).toColor()
+        : Colors.grey.shade300;
+
+    final switchForeground = isDark ? Colors.white : Colors.black87;
+
+    // Icon for the switch button: show moon when currently light (action = switch to dark),
+    // show sun when currently dark (action = switch to light).
+    final switchIcon = ThemeService.notifier.value == ThemeMode.dark ? Icons.wb_sunny : Icons.nights_stay;
+    final switchLabel = ThemeService.notifier.value == ThemeMode.dark ? 'Switch to Light' : 'Switch to Dark';
 
     return Scaffold(
       body: Column(
         children: [
+          // header (thinner, gradient like other screens)
           ClipRRect(
             borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
             child: Container(
               width: double.infinity,
-              color: primary,
-              padding: const EdgeInsets.only(top: 80, bottom: 40),
+              decoration: BoxDecoration(gradient: primaryGradient),
+              padding: const EdgeInsets.only(top: 60, bottom: 28),
               child: Center(
                 child: Text(
                   'Profile',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 24),
+
+          const SizedBox(height: 20),
+
+          // profile info + member since card
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                Text(_name ?? '', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primary)),
+                // name & email
+                Text(_name ?? '', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: nameAndMemberColor)),
                 const SizedBox(height: 6),
-                Text(_email ?? '', style: TextStyle(fontSize: 14, color: Colors.grey[700])),
-                const SizedBox(height: 20),
+                Text(_email ?? '', style: TextStyle(fontSize: 14, color: subtitleColor)),
+                const SizedBox(height: 18),
+
+                // Member since card — use theme.cardColor and readable text
                 Card(
+                  color: theme.cardColor,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Row(
                       children: [
-                        const Icon(Icons.school),
+                        Icon(Icons.school, color: nameAndMemberColor),
                         const SizedBox(width: 12),
-                        Expanded(child: Text('Member since ${_memberSince ?? "Unknown"}\nSyllabuddy user', style: TextStyle(color: Colors.grey[800]))),
+                        Expanded(
+                          child: Text(
+                            'Member since ${_memberSince ?? "Unknown"}\nSyllabuddy user',
+                            style: TextStyle(color: nameAndMemberColor.withOpacity(0.95)),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
 
-                // New: View Bookmarked Subjects
+                const SizedBox(height: 22),
+
+                // 1) Bookmarked subjects — primary gradient
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.bookmark),
-                    label: const Text('Bookmarked subjects'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
+                  child: buildActionButton(
+                    ctx: context,
+                    icon: Icons.bookmark,
+                    label: 'Bookmarked subjects',
+                    gradient: primaryGradient,
                     onPressed: _openBookmarks,
+                    foreground: Colors.white,
                   ),
                 ),
 
                 const SizedBox(height: 12),
+
+                // 2) Edit Profile — primary gradient
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Edit Profile'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
+                  child: buildActionButton(
+                    ctx: context,
+                    icon: Icons.edit,
+                    label: 'Edit Profile',
+                    gradient: primaryGradient,
                     onPressed: () => _editProfile(context),
+                    foreground: Colors.white,
                   ),
                 ),
+
                 const SizedBox(height: 12),
+
+                // 3) Toggle theme — uses a solid color (derived) that contrasts better in dark mode
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.dark_mode),
-                    label: const Text('Toggle Dark/Light Mode'),
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color.fromARGB(255, 3, 45, 99), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
-                    onPressed: () {
-                      // TODO: add dark mode toggle
+                  child: buildActionButton(
+                    ctx: context,
+                    icon: switchIcon,
+                    label: switchLabel,
+                    solidColor: switchSolidColor,
+                    foreground: switchForeground,
+                    onPressed: () async {
+                      await ThemeService.toggle();
+                      if (mounted) {
+                        setState(() {}); // refresh icon/label
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(ThemeService.notifier.value == ThemeMode.dark ? 'Dark mode on' : 'Light mode on')),
+                        );
+                      }
                     },
                   ),
                 ),
+
                 const SizedBox(height: 12),
+
+                // 4) Logout — primary gradient
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.logout),
-                    label: const Text('Logout'),
-                    style: ElevatedButton.styleFrom(backgroundColor: primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
+                  child: buildActionButton(
+                    ctx: context,
+                    icon: Icons.logout,
+                    label: 'Logout',
+                    gradient: primaryGradient,
                     onPressed: () => _logout(context),
+                    foreground: Colors.white,
                   ),
                 ),
+
                 const SizedBox(height: 12),
+
+                // 5) Delete account — red gradient (distinct)
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.delete_forever),
-                    label: const Text('Delete Account'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 16)),
+                  child: buildActionButton(
+                    ctx: context,
+                    icon: Icons.delete_forever,
+                    label: 'Delete Account',
+                    gradient: redGradient(),
                     onPressed: () => _confirmAndDelete(context),
+                    foreground: Colors.white,
                   ),
                 ),
+
+                const SizedBox(height: 20),
               ],
             ),
           ),

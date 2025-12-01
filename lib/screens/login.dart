@@ -8,7 +8,7 @@ import 'degree_screen.dart'; // CoursesScreen
 import 'package:shared_preferences/shared_preferences.dart';
 
 // new imports
-import 'VerifyEmailPage.dart';
+import 'verify_email_page.dart';
 import 'package:syllabuddy/services/pending_signup_service.dart';
 import 'package:syllabuddy/services/user_service.dart';
 

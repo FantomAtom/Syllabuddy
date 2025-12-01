@@ -1,6 +1,5 @@
 // lib/screens/hall_allotments_demo.dart
 import 'package:flutter/material.dart';
-import 'package:syllabuddy/theme.dart';
 
 class HallAllotmentsDemo extends StatelessWidget {
   const HallAllotmentsDemo({Key? key}) : super(key: key);
@@ -69,19 +68,31 @@ class HallAllotmentsDemo extends StatelessWidget {
         },
       ];
 
+  LinearGradient _primaryGradient(Color base) {
+    final h = HSLColor.fromColor(base);
+    final darker = h.withLightness((h.lightness - 0.12).clamp(0.0, 1.0)).toColor();
+    return LinearGradient(colors: [darker, base], stops: const [0.0, 0.5], begin: Alignment.bottomCenter, end: Alignment.topCenter);
+  }
+
+  Color _deriveDarker(Color base, double reduceBy) {
+    final h = HSLColor.fromColor(base);
+    return h.withLightness((h.lightness - reduceBy).clamp(0.0, 1.0)).toColor();
+  }
+
   Widget _buildHeader(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
+    final grad = _primaryGradient(primary);
+
     return ClipRRect(
       borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
       child: Container(
         width: double.infinity,
-        color: primary,
-        // RESTORED: original padding values
-        padding: const EdgeInsets.only(top: 80, bottom: 40),
+        decoration: BoxDecoration(gradient: grad),
+        padding: const EdgeInsets.only(top: 60, bottom: 28),
         child: Center(
           child: Text(
             'Hall Allotments',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.95)),
           ),
         ),
       ),
@@ -89,67 +100,45 @@ class HallAllotmentsDemo extends StatelessWidget {
   }
 
   TableRow _buildHeaderRow(BuildContext context) {
-  final primary = Theme.of(context).primaryColor;
+    final primary = Theme.of(context).primaryColor;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final headerColor = isDark ? _deriveDarker(primary, 0.14) : primary;
 
-  return TableRow(
-    decoration: const BoxDecoration(color: kPrimaryColor),
-    children: [
-      Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Text(
-          'S.NO',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+    return TableRow(
+      decoration: BoxDecoration(color: headerColor),
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Text('S.NO', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         ),
-      ),
-      Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Text(
-          'YEAR/DEPT',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Text('YEAR/DEPT', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         ),
-      ),
-      Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Text(
-          'REG.NO',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Text('REG.NO', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         ),
-      ),
-      Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Text(
-          'HALL NO.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Text('HALL NO.', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 
-
-  List<TableRow> _buildDataRows() {
+  List<TableRow> _buildDataRows(BuildContext context) {
+    final surfaceText = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black87;
+    final cellStyle = TextStyle(color: surfaceText);
     return sampleRows.map((r) {
       return TableRow(children: [
-        Padding(padding: const EdgeInsets.all(12.0), child: Text(r['sno'].toString(), textAlign: TextAlign.center)),
-        Padding(padding: const EdgeInsets.all(12.0), child: Text(r['deptLeft'], textAlign: TextAlign.center)),
-        Padding(padding: const EdgeInsets.all(12.0), child: Text(r['regsLeft'], textAlign: TextAlign.center)),
-        Padding(padding: const EdgeInsets.all(12.0), child: Text(r['hall'], textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold))),
+        Padding(padding: const EdgeInsets.all(12.0), child: Text(r['sno'].toString(), textAlign: TextAlign.center, style: cellStyle)),
+        Padding(padding: const EdgeInsets.all(12.0), child: Text(r['deptLeft'], textAlign: TextAlign.center, style: cellStyle)),
+        Padding(padding: const EdgeInsets.all(12.0), child: Text(r['regsLeft'], textAlign: TextAlign.center, style: cellStyle)),
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Text(r['hall'], textAlign: TextAlign.center, style: cellStyle.copyWith(fontWeight: FontWeight.bold)),
+        ),
       ]);
     }).toList();
   }
@@ -164,7 +153,7 @@ class HallAllotmentsDemo extends StatelessWidget {
         top: false,
         child: Column(
           children: [
-            // Header (original style restored)
+            // Header (gradient)
             _buildHeader(context),
 
             const SizedBox(height: 12),
@@ -175,6 +164,7 @@ class HallAllotmentsDemo extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Card(
                   elevation: 2,
+                  color: Theme.of(context).cardColor,
                   child: Padding(
                     padding: const EdgeInsets.all(8),
                     // Vertical scroll that contains a horizontally scrollable table.
@@ -190,7 +180,7 @@ class HallAllotmentsDemo extends StatelessWidget {
                             padding: EdgeInsets.only(bottom: bottomInset),
                             child: Table(
                               defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                              border: TableBorder.all(color: Colors.black54, width: 1),
+                              border: TableBorder.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.black26, width: 1),
                               columnWidths: const {
                                 0: FixedColumnWidth(56),
                                 1: FixedColumnWidth(220),
@@ -199,7 +189,7 @@ class HallAllotmentsDemo extends StatelessWidget {
                               },
                               children: [
                                 _buildHeaderRow(context),
-                                ..._buildDataRows(),
+                                ..._buildDataRows(context),
                               ],
                             ),
                           ),
