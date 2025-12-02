@@ -1,9 +1,18 @@
-# Syllabuddy
+📚 **Syllabuddy – College Companion App**  
+Syllabuddy is my **first Flutter learning project**, built to understand how to develop mobile apps using Flutter. It helps both **students and staff** stay organised by providing:
 
-**Syllabuddy** is a smart companion for college students.  
-It helps students with semester essentials such as syllabi, subject lists, schedules, exams, hall allotments and bookmarks, so students can stay organised and prepared, while also giving staff the tools to manage academic content, update exam details and handle hall allotments through the built-in admin features.
+- 📖 Easy browsing of degrees, departments, semesters & subjects  
+- 📝 Quick access to syllabus content  
+- ⭐ Bookmarks for important subjects and topics  
+- 🗓️ Exam schedules & hall allotments  
+- 🛠️ Staff/admin tools to add, update and manage academic content  
 
-> ⚡ This is my **first Flutter learning project**, created to learn how to build mobile apps with Flutter.
+This project is designed as a practical prototype to explore:
+
+- 🎨 Clean and modern mobile UI patterns  
+- 🔍 Structured academic browsing flows  
+- 📚 Managing syllabus & exam information efficiently  
+- 🧭 A streamlined user journey for students and staff across the app  
 
 ---
 
