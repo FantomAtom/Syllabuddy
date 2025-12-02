@@ -41,20 +41,20 @@ It helps students with semester essentials such as syllabi, subject lists, sched
 
 <table>
 <tr>
-  <td><img src="https://github.com/user-attachments/assets/d007b522-b912-4741-8d8f-73f99470afc1" width="260" /></td>
-  <td><img src="https://github.com/user-attachments/assets/e94d832f-911c-4d53-b8bf-00540a6c6904" width="260" /></td>
   <td><img src="https://github.com/user-attachments/assets/9f880454-a363-40cb-b96c-295dacf4cfe1" width="260" /></td>
   <td><img src="https://github.com/user-attachments/assets/2992436c-4b71-481d-9124-9f7c74215088" width="260" /></td>
+  <td><img src="https://github.com/user-attachments/assets/e686044b-2ead-42c8-84fa-ec4bcd9399c3" width="260" /></td>
+  <td><img src="https://github.com/user-attachments/assets/3ad1dd58-ca1b-4ca2-8eb2-89e4da001fc2" width="260" /></td>
 </tr>
 <tr>
-  <td><img src="https://github.com/user-attachments/assets/e686044b-2ead-42c8-84fa-ec4bcd9399c3" width="260" /></td>
+  <td><img src="https://github.com/user-attachments/assets/e94d832f-911c-4d53-b8bf-00540a6c6904" width="260" /></td>
+  <td><img src="https://github.com/user-attachments/assets/d007b522-b912-4741-8d8f-73f99470afc1" width="260" /></td>
   <td><img src="https://github.com/user-attachments/assets/03d5e59a-051c-484b-a942-89793707e4d9" width="260" /></td>
+  <td><img src="https://github.com/user-attachments/assets/b9b53f92-1e20-4980-88b8-c2e06445d7fb" width="260" /></td>
+</tr>
+<tr>
   <td><img src="https://github.com/user-attachments/assets/06b7d0e1-a6ae-4fd3-81e6-f445afa2b2d7" width="260" /></td>
   <td><img src="https://github.com/user-attachments/assets/a616b58f-e1f8-4889-8034-0a2ee3d4e4f2" width="260" /></td>
-</tr>
-<tr>
-  <td><img src="https://github.com/user-attachments/assets/3ad1dd58-ca1b-4ca2-8eb2-89e4da001fc2" width="260" /></td>
-  <td><img src="https://github.com/user-attachments/assets/b9b53f92-1e20-4980-88b8-c2e06445d7fb" width="260" /></td>
   <td><img src="https://github.com/user-attachments/assets/87977d45-d941-42db-960c-e385d44bc2f3" width="260" /></td>
   <td><img src="https://github.com/user-attachments/assets/d673dd72-685d-4a28-932d-0b03d39e3d55" width="260" /></td>
 </tr>
