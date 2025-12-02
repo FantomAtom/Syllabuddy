@@ -13,7 +13,8 @@ Syllabuddy collects and surfaces semester essentials — syllabi, subject lists,
 ## Demo GIF
 <p align="center">
   <!-- demo GIF (full-size file displayed scaled down) -->
-  <img src="https://github.com/user-attachments/assets/7776f718-520a-4ef5-9965-c4d6fe2baab3" width="480" alt="Syllabuddy demo GIF" />
+  <img src="https://github.com/user-attachments/assets/7776f718-520a-4ef5-9965-c4d6fe2baab3" width="480" alt="Syllabuddy demo GIF 1" />
+  <img src="https://github.com/user-attachments/assets/0fd08839-dd70-4cde-b000-8942134e9f71" width="480" alt="Syllabuddy demo GIF 2" />
 </p>
 
 ---
