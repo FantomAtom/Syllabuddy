@@ -11,6 +11,13 @@ import 'screens/main_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // LOCK TO PORTRAIT ONLY
+  // Allow only portraitUp. If you want to allow upside-down portrait too, add DeviceOrientation.portraitDown
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
+
   await Firebase.initializeApp();
   // Load saved theme before runApp
   await ThemeService.init();
@@ -56,7 +63,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
 
 /// Shows LandingScreen if logged out, MainShell if logged in
 class RootDecider extends StatelessWidget {
