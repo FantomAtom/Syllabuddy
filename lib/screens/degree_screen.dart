@@ -67,14 +67,37 @@ class _CoursesScreenState extends State<CoursesScreen> {
         });
         return;
       }
+
       final data = await UserService.getCurrentUserData();
-      final first = data?['firstName'] ?? '';
+
+      // normalize to strings and trim whitespace
+      final first = (data?['firstName'] ?? '').toString().trim();
+      final last = (data?['lastName'] ?? '').toString().trim();
+
+      // choose firstName if present, otherwise lastName, otherwise try auth displayName,
+      // otherwise fallback to 'User'
+      String chosen;
+      if (first.isNotEmpty) {
+        chosen = first;
+      } else if (last.isNotEmpty) {
+        chosen = last;
+      } else if ((user.displayName ?? '').trim().isNotEmpty) {
+        chosen = user.displayName!.trim();
+      } else if ((user.email ?? '').isNotEmpty) {
+        // fallback to email local-part (before @) if available
+        chosen = user.email!.split('@').first;
+      } else {
+        chosen = 'User';
+      }
+
+      if (!mounted) return;
       setState(() {
-        _userName = "$first".trim().isEmpty ? "User" : "$first".trim();
+        _userName = chosen;
         _loadingUser = false;
       });
     } catch (e) {
       debugPrint("Failed to fetch user name: $e");
+      if (!mounted) return;
       setState(() {
         _userName = "User";
         _loadingUser = false;

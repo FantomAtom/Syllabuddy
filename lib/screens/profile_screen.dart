@@ -34,6 +34,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fetchProfile();
   }
 
+  String? _firstName;
+  String? _lastName;
+
   Future<void> _fetchProfile() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
@@ -44,6 +47,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _email = null;
           _name = null;
           _memberSince = null;
+          _firstName = null;
+          _lastName = null;
         });
       }
       return;
@@ -51,14 +56,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final data = await UserService.getCurrentUserData();
-      final first = data?['firstName'] ?? '';
-      final last = data?['lastName'] ?? '';
+      final first = (data?['firstName'] ?? '') as String;
+      final last = (data?['lastName'] ?? '') as String;
       final ts = data?['createdAt'];
 
       if (!mounted) return;
       setState(() {
         _user = currentUser;
         _email = currentUser.email;
+        _firstName = first;
+        _lastName = last;
+        // Maintain _name for backward compatibility in other places if you need it,
+        // but use _firstName/_lastName when editing.
         _name = "$first $last".trim().isEmpty ? 'Unknown' : "$first $last".trim();
 
         if (ts != null && ts is Timestamp) {
@@ -76,6 +85,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _user = currentUser;
         _email = currentUser?.email;
+        _firstName = null;
+        _lastName = null;
         _name = 'Unknown';
         _memberSince = "Unknown";
         _loading = false;
@@ -352,61 +363,117 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // edit profile flow (re-implemented from your original)
   Future<void> _editProfile(BuildContext context) async {
     if (_isEditing) return;
     _isEditing = true;
 
-    final parts = (_name ?? "").split(" ");
-    final firstName = parts.isNotEmpty ? parts.first : "";
-    final lastName = parts.length > 1 ? parts.sublist(1).join(" ") : "";
+    final formKey = GlobalKey<FormState>();
+    String editedFirst = _firstName ?? '';
+    String editedLast = _lastName ?? '';
 
-    final firstNameController = TextEditingController(text: firstName);
-    final lastNameController = TextEditingController(text: lastName);
+    final emailValue = _email ?? '';
 
-    await showDialog(
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Edit Profile"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: firstNameController, decoration: const InputDecoration(labelText: "First Name", border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              TextField(controller: lastNameController, decoration: const InputDecoration(labelText: "Last Name", border: OutlineInputBorder())),
-            ],
-          ),
-          actions: [
-            TextButton(child: const Text("Cancel"), onPressed: () => Navigator.pop(context)),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor, foregroundColor: Colors.white),
-              child: const Text("Save"),
-              onPressed: () async {
-                try {
-                  await UserService.updateName(firstNameController.text.trim(), lastNameController.text.trim());
-                  Navigator.pop(context);
-                  await _fetchProfile();
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully')));
-                } on FirebaseException catch (e) {
-                  Navigator.pop(context);
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update profile: ${e.message}')));
-                } catch (e) {
-                  Navigator.pop(context);
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update profile: $e')));
-                }
-              },
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(builder: (context, setStateDialog) {
+          var saving = false;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text("Edit Profile"),
+            content: SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // READ-ONLY email field (no controller)
+                      TextFormField(
+                        initialValue: emailValue,
+                        decoration: const InputDecoration(
+                          labelText: "Email",
+                          border: OutlineInputBorder(),
+                        ),
+                        enabled: false,
+                        readOnly: true,
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                      const SizedBox(height: 12),
+                      // First name
+                      TextFormField(
+                        initialValue: _firstName ?? '',
+                        decoration: const InputDecoration(
+                          labelText: "First Name",
+                          border: OutlineInputBorder(),
+                        ),
+                        onSaved: (v) => editedFirst = (v ?? '').trim(),
+                      ),
+                      const SizedBox(height: 12),
+                      // Last name
+                      TextFormField(
+                        initialValue: _lastName ?? '',
+                        decoration: const InputDecoration(
+                          labelText: "Last Name",
+                          border: OutlineInputBorder(),
+                        ),
+                        onSaved: (v) => editedLast = (v ?? '').trim(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ],
-        );
+            actions: [
+              TextButton(
+                child: const Text("Cancel"),
+                onPressed: saving ? null : () => Navigator.of(dialogContext).pop(false),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor, foregroundColor: Colors.white),
+                child: saving
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text("Save"),
+                onPressed: saving
+                    ? null
+                    : () async {
+                        // validate/save form
+                        formKey.currentState?.save();
+                        if ((editedFirst.isEmpty && editedLast.isEmpty)) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a first or last name')));
+                          return;
+                        }
+
+                        setStateDialog(() => saving = true);
+                        try {
+                          await UserService.updateName(editedFirst, editedLast);
+                          if (Navigator.of(dialogContext).canPop()) Navigator.of(dialogContext).pop(true);
+                        } on FirebaseException catch (e) {
+                          setStateDialog(() => saving = false);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update profile: ${e.message}')));
+                        } catch (e) {
+                          setStateDialog(() => saving = false);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update profile: $e')));
+                        }
+                      },
+              ),
+            ],
+          );
+        });
       },
     );
 
     _isEditing = false;
+
+    if (saved == true) {
+      await _fetchProfile();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully')));
+      }
+    }
   }
 
   bool _isEditing = false;
@@ -448,10 +515,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                // name & email
+                // name (email removed from main view as requested)
                 Text(_name ?? '', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: nameAndMemberColor)),
                 const SizedBox(height: 6),
-                Text(_email ?? '', style: TextStyle(fontSize: 14, color: subtitleColor)),
+                // email removed here
                 const SizedBox(height: 18),
 
                 // Member since card — use AppStyles styling
