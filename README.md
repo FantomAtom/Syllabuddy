@@ -1,5 +1,18 @@
-# 📚 Syllabuddy – College Companion App
+<table>
+<tr>
+<td>
+
+# 📚 Syllabuddy – College Companion App  
 Syllabuddy is my **first Flutter learning project**, built to understand how to develop mobile apps using Flutter. It helps both **students and staff** stay organised by providing:
+
+</td>
+<td align="right" width="180">
+
+<img src="https://github.com/user-attachments/assets/649b1fd6-ac86-40f2-b3e8-d222e0a3f7f8" width="150" alt="App Icon">
+
+</td>
+</tr>
+</table>
 
 - 📖 Easy browsing of degrees, departments, semesters & subjects  
 - 📝 Quick access to syllabus content  
