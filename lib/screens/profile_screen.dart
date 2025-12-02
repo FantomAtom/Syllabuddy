@@ -439,7 +439,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: Column(
         children: [
           // shared header for consistent look
-          AppHeader(title: 'Profile', showBack: true),
+          AppHeader(title: 'Profile', showBack: false),
 
           const SizedBox(height: 20),
 

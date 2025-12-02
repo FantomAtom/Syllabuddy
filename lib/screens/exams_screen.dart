@@ -158,7 +158,7 @@ class ExamsScreen extends StatelessWidget {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: Column(
         children: [
-          const AppHeader(title: 'Exams', showBack: true),
+          const AppHeader(title: 'Exams', showBack: false),
 
           // small section heading + optional subtle description
           Padding(
