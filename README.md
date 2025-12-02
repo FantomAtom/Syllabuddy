@@ -1,13 +1,13 @@
 # Syllabuddy
 
-**Syllabuddy** — a smart companion for college students.  
-It collects and surfaces semester essentials — syllabi, subject lists, schedules, exams, hall allotments and bookmarks — so students can stay organised and prepared.
+**Syllabuddy** is a smart companion for college students.  
+It helps students with semester essentials such as syllabi, subject lists, schedules, exams, hall allotments and bookmarks, so students can stay organised and prepared, while also giving staff the tools to manage academic content, update exam details and handle hall allotments through the built-in admin features.
 
-> ⚡ Built as a **Flutter learning project**, exploring architecture, UI patterns, animations and Firebase integration.
+> ⚡ This is my **first Flutter learning project**, created to learn how to build mobile apps with Flutter.
 
 ---
 
-## What it does (short)
+## What it does
 - Browse semesters, degrees, departments  
 - View syllabi and subject content  
 - Bookmark important subjects & syllabus items  
@@ -33,13 +33,11 @@ It collects and surfaces semester essentials — syllabi, subject lists, schedul
 ## Tech Stack
 - **Flutter (Dart)** — UI + logic  
 - **Firebase** — Auth, Firestore, Storage  
-- Supports both **Android & iOS**  
-- Optional: GitHub Actions (CI), Git LFS for large media
+- Built for **Android** but ios can also be supported 
 
 ---
 
 # 📱 **App Screenshots**
-> *All screenshots originally 1260×2800. Displayed below at 260px width.*
 
 <table>
 <tr>
@@ -49,16 +47,16 @@ It collects and surfaces semester essentials — syllabi, subject lists, schedul
   <td><img src="https://github.com/user-attachments/assets/2992436c-4b71-481d-9124-9f7c74215088" width="260" /></td>
 </tr>
 <tr>
-  <td><img src="https://github.com/user-attachments/assets/3ad1dd58-ca1b-4ca2-8eb2-89e4da001fc2" width="260" /></td>
-  <td><img src="https://github.com/user-attachments/assets/b9b53f92-1e20-4980-88b8-c2e06445d7fb" width="260" /></td>
   <td><img src="https://github.com/user-attachments/assets/e686044b-2ead-42c8-84fa-ec4bcd9399c3" width="260" /></td>
   <td><img src="https://github.com/user-attachments/assets/03d5e59a-051c-484b-a942-89793707e4d9" width="260" /></td>
-</tr>
-<tr>
   <td><img src="https://github.com/user-attachments/assets/06b7d0e1-a6ae-4fd3-81e6-f445afa2b2d7" width="260" /></td>
   <td><img src="https://github.com/user-attachments/assets/a616b58f-e1f8-4889-8034-0a2ee3d4e4f2" width="260" /></td>
-  <td><img src="https://github.com/user-attachments/assets/d673dd72-685d-4a28-932d-0b03d39e3d55" width="260" /></td>
+</tr>
+<tr>
+  <td><img src="https://github.com/user-attachments/assets/3ad1dd58-ca1b-4ca2-8eb2-89e4da001fc2" width="260" /></td>
+  <td><img src="https://github.com/user-attachments/assets/b9b53f92-1e20-4980-88b8-c2e06445d7fb" width="260" /></td>
   <td><img src="https://github.com/user-attachments/assets/87977d45-d941-42db-960c-e385d44bc2f3" width="260" /></td>
+  <td><img src="https://github.com/user-attachments/assets/d673dd72-685d-4a28-932d-0b03d39e3d55" width="260" /></td>
 </tr>
 <tr>
   <td><img src="https://github.com/user-attachments/assets/a815e4de-d075-47fd-b4b2-0b25022550a8" width="260" /></td>
@@ -89,7 +87,6 @@ It collects and surfaces semester essentials — syllabi, subject lists, schedul
 ---
 
 # 🎞 **GIFs**
-> *GIFs are originally 800×1778 but resized to match screenshot width.*
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/7776f718-520a-4ef5-9965-c4d6fe2baab3" width="260" />
