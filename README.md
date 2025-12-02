@@ -47,10 +47,10 @@ It helps students with semester essentials such as syllabi, subject lists, sched
   <td><img src="https://github.com/user-attachments/assets/3ad1dd58-ca1b-4ca2-8eb2-89e4da001fc2" width="260" /></td>
 </tr>
 <tr>
+  <td><img src="https://github.com/user-attachments/assets/b9b53f92-1e20-4980-88b8-c2e06445d7fb" width="260" /></td>
   <td><img src="https://github.com/user-attachments/assets/e94d832f-911c-4d53-b8bf-00540a6c6904" width="260" /></td>
   <td><img src="https://github.com/user-attachments/assets/d007b522-b912-4741-8d8f-73f99470afc1" width="260" /></td>
   <td><img src="https://github.com/user-attachments/assets/03d5e59a-051c-484b-a942-89793707e4d9" width="260" /></td>
-  <td><img src="https://github.com/user-attachments/assets/b9b53f92-1e20-4980-88b8-c2e06445d7fb" width="260" /></td>
 </tr>
 <tr>
   <td><img src="https://github.com/user-attachments/assets/06b7d0e1-a6ae-4fd3-81e6-f445afa2b2d7" width="260" /></td>
@@ -89,8 +89,8 @@ It helps students with semester essentials such as syllabi, subject lists, sched
 # 🎞 **GIFs**
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/7776f718-520a-4ef5-9965-c4d6fe2baab3" width="260" />
-  <img src="https://github.com/user-attachments/assets/0fd08839-dd70-4cde-b000-8942134e9f71" width="260" />
+  <img src="https://github.com/user-attachments/assets/7776f718-520a-4ef5-9965-c4d6fe2baab3" width="200" />
+  <img src="https://github.com/user-attachments/assets/0fd08839-dd70-4cde-b000-8942134e9f71" width="200" />
 </p>
 
 ---
