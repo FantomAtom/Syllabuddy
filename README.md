@@ -1,5 +1,4 @@
 # 📚 Syllabuddy – College Companion App
-
 Syllabuddy is my **first Flutter learning project**, built to understand how to develop mobile apps using Flutter. It helps both **students and staff** stay organised by providing:
 
 - 📖 Easy browsing of degrees, departments, semesters & subjects  
@@ -43,7 +42,14 @@ This project is designed as a practical prototype to explore:
 ## Tech Stack
 - **Flutter (Dart)** — UI + logic  
 - **Firebase** — Auth, Firestore, Storage  
-- Built for **Android** but ios can also be supported 
+- Built for **Android** but ios can also be supported
+
+---
+
+## 📦 Download the App
+You can download the latest **APK build** from the **Releases** section of this repository:
+
+➡️ https://github.com/FantomAtom/Syllabuddy/releases/
 
 ---
 
